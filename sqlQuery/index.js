@@ -4,9 +4,9 @@ const mainSqlQuery = `
   FROM experience A
   LEFT JOIN experience_sub B
   ON A.company_cd = B.company_cd
-  ORDER BY A.employment_from desc, B.project_from ASC
+  ORDER BY A.employment_from desc, B.project_from desc
 `;
 
 module.exports = {
-  mainSqlQuery
+  mainSqlQuery,
 };

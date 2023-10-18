@@ -1,14 +1,13 @@
-const express = require('express');
-const app = express(); 
+const express = require("express");
+const app = express();
 
-const { baseDbConnection } = require('./dbConnection/baseDbConnection');
-const { main} =  require('./sqlExecute/index');
-//cors 에러
+const { baseDbConnection } = require("./dbConnection/baseDbConnection");
+const { main } = require("./sqlExecute/index");
 const cors = require("cors");
 
 app.use(cors());
- 
-app.get('/main', async (req, res) => {
+
+app.get("/main", async (req, res) => {
   try {
     // 디비 연결!
     const connection = await baseDbConnection();
@@ -17,10 +16,10 @@ app.get('/main', async (req, res) => {
     await connection.close();
   } catch (err) {
     console.error(err);
-    res.status(500).send('Internal Server Error');
+    res.status(500).send("Internal Server Error");
   }
 });
 
 app.listen(4000, () => {
-  console.log('서버가 실행되었습니다.');
+  console.log("서버가 실행되었습니다.");
 });

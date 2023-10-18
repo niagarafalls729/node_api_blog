@@ -1,5 +1,5 @@
-const oracledb = require('oracledb');
-const dbConfig = require('../dbConfig/config');
+const oracledb = require("oracledb");
+const dbConfig = require("../dbConfig/config");
 
 async function baseDbConnection() {
   return new Promise(async (resolve, reject) => {
@@ -14,5 +14,5 @@ async function baseDbConnection() {
 }
 
 module.exports = {
-  baseDbConnection
+  baseDbConnection,
 };
