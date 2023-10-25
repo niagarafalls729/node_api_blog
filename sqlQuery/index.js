@@ -18,10 +18,17 @@ const loginUserSqlQuery = (id, pw ) => {
   `;
 };
  
-const guestBookListSqlQuery = () => {
-  return `
-    Select * from guestBook order by  creation_timestamp desc
-  `;
+const guestBookListSqlQuery = (index) => {
+  console.log("index,,,",index)
+  let query = 'Select * from guestBook';
+
+  if (index != null) {
+    query += ` WHERE idx = '${index}'`;
+  }
+
+  query += ' order by idx desc';
+
+  return query;
 };
 const guestBookInsertSqlQuery = (title, contents, id) => {
   return `

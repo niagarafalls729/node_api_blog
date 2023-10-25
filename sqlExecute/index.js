@@ -1,8 +1,27 @@
 const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookInsertSqlQuery } = require("../sqlQuery/index");
-const dayjs = require("dayjs");
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc'); // UTC 플러그인
+const timezone = require('dayjs/plugin/timezone'); // 타임존 플러그인
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
 const oracledb = require('oracledb');
 const fs = require('fs'); // 파일 시스템 모듈 
- 
+// function convertToKoreanTime(utcTime) {
+//   console.log("utcTime",utcTime)
+//   // UTC 시간을 dayjs 객체로 파싱
+//   const utcMoment = dayjs(utcTime).utc();
+
+//   // 시간대를 한국 시간대로 설정
+//   const koreanMoment = utcMoment.tz('Asia/Seoul');
+
+//   return koreanMoment;
+// }
+function convertToKoreanTime(utcTime) {
+  const koreanTime = dayjs.utc(utcTime).tz('Asia/Seoul');
+  return koreanTime.format('YYYY-MM-DD HH:mm');
+}
 const main = (connection) => {
   return new Promise((resolve, reject) => {
     // console.log("main",JSON.stringify(mainSqlQuery))
@@ -98,66 +117,59 @@ const loginUser = (connection, req) => {
     });
   });
 };
-const guestBookList = (connection, req) => {
-  return new Promise((resolve, reject) => { 
-    connection.execute(guestBookListSqlQuery(), (err, result) => {
+const guestBookList = (connection, {index}) => {
+  return new Promise((resolve, reject) => {  
+    console.log("index,,,,!!!LLL",index)
+    console.log("guestBookListSqlQuery(index)",guestBookListSqlQuery(index))
+    connection.execute(guestBookListSqlQuery(index), (err, result) => {
       if (err) {
         console.error("2:", err.message);
         reject(err); // 에러 발생 시 reject를 호출하여 프로미스를 거부합니다.
         return;
       }
       const rows = result.rows;
-      console.log("rows",rows)
-      const jsonData = rows.map((row) => { 
+      // console.log("rows",rows)
+      const jsonData = rows.map((row,idx) => { 
         return {
           title: row[0],
-          contents : row[1],
-          creation_timestamp: row[2],
-          id: row[3],
-          code : "0000", 
+          creation_timestamp :convertToKoreanTime(row[1]),
+          id: row[2],
+          contents: row[3],
+          index : row[4] ,
         };
       });
-      console.log("jsonData",jsonData)
+      // console.log("jsonData",jsonData)
       resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
     });
   });
 };
 const guestBookCreate = async (connection, req, filePath) => {
-  try {
-    // BLOB 열을 초기화
-    const result = await connection.execute(
-      `INSERT INTO GUESTBOOK (TITLE, CONTENTS, CREATION_TIMESTAMP, ID)
-       VALUES (:title, EMPTY_BLOB(), SYSTIMESTAMP AT TIME ZONE 'Asia/Seoul', :id)
-       RETURNING CONTENTS INTO :contentBlob`,
-      {
-        title: '제목',
-        id: '아이디',
-        contentBlob: { type: oracledb.BLOB, dir: oracledb.BIND_OUT }
+  return new Promise((resolve, reject) => {
+    const data = req.body; // JSON 데이터는 req.body에 저장됩니다.
+    // data 객체에서 필요한 정보를 추출하거나 처리합니다.
+    const title = data.title;
+    const contents = data.contents; 
+    const id = data.id; 
+    console.log("guestBookInsertSqlQuery",guestBookInsertSqlQuery(title, contents, id))
+    connection.execute(guestBookInsertSqlQuery(title, contents, id), (err, result) => {
+      if (err) {
+        console.error("2:", err.message);
+        reject(err);
+        return;
       }
-    );
+      // 변경 내용을 모두 반영하고 커밋 수행
+      connection.commit((commitErr) => {
+        if (commitErr) {
+          console.error("Commit error:", commitErr.message);
+          reject(commitErr);
+          return;
+        }
 
-    if (result.outBinds.contentBlob) {
-      const lob = result.outBinds.contentBlob;
-      if (filePath && fs.existsSync(filePath)) {
-        const data = fs.readFileSync(filePath);
-        await lob.write(data);
-      } else {
-        // 파일이 없는 경우, 기본 HTML 컨텐츠를 BLOB 열에 삽입
-        const defaultContent = '<p>기본 내용</p>';
-        await lob.write(defaultContent);
-      }
-      await lob.end();
-    } else {
-      console.error('BLOB 초기화 실패');
-    }
-
-    // 커밋 수행
-    await connection.commit();
-
-    console.log('BLOB 데이터 삽입 완료');
-  } catch (err) {
-    console.error('BLOB 데이터 삽입 오류:', err.message);
-  }
+        const jsonData = { code: "0000", message: "등록 성공" };
+        resolve(jsonData);
+      });
+    });
+  });
 };
 
 
