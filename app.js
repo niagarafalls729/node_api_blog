@@ -17,7 +17,12 @@ const { upload } = require("./multer/index");
 const cors = require("cors");
 
 app.use(cors());
+app.use((_req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Headers', '*');
 
+  next();
+});
 app.get("/main", async (req, res) => {
   try {
     // 디비 연결!
