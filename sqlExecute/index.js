@@ -119,7 +119,7 @@ const loginUser = (connection, req) => {
 };
 const guestBookList = (connection, {index}) => {
   return new Promise((resolve, reject) => {  
-    console.log("index,,,,!!!LLL",index)
+    console.log("guestBookList",index)
     console.log("guestBookListSqlQuery(index)",guestBookListSqlQuery(index))
     connection.execute(guestBookListSqlQuery(index), (err, result) => {
       if (err) {
