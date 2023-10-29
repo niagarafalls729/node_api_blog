@@ -136,6 +136,8 @@ const guestBookList = (connection, {index}) => {
           id: row[2],
           contents: row[3],
           index : row[4] ,
+          password : row[5] ,
+          member_create: row[6],
         };
       });
       // console.log("jsonData",jsonData)
@@ -150,8 +152,13 @@ const guestBookCreate = async (connection, req, filePath) => {
     const title = data.title;
     const contents = data.contents; 
     const id = data.id; 
-    console.log("guestBookInsertSqlQuery",guestBookInsertSqlQuery(title, contents, id))
-    connection.execute(guestBookInsertSqlQuery(title, contents, id), (err, result) => {
+    const index = data.index; 
+    const pw = data.password; 
+    const member_create = data.member_create; 
+    console.log("title, contents, id,index",title, contents, id,index,pw,member_create)
+    console.log("guestBookInsertSqlQuery",guestBookInsertSqlQuery(title, contents, id,index,pw))
+    
+    connection.execute(guestBookInsertSqlQuery(title, contents, id,index,pw,member_create), (err, result) => {
       if (err) {
         console.error("2:", err.message);
         reject(err);
@@ -163,8 +170,7 @@ const guestBookCreate = async (connection, req, filePath) => {
           console.error("Commit error:", commitErr.message);
           reject(commitErr);
           return;
-        }
-
+        } 
         const jsonData = { code: "0000", message: "등록 성공" };
         resolve(jsonData);
       });
@@ -182,3 +188,4 @@ module.exports = {
   guestBookList,
   guestBookCreate
 };
+

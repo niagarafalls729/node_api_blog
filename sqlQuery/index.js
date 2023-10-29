@@ -30,11 +30,19 @@ const guestBookListSqlQuery = (index) => {
 
   return query;
 };
-const guestBookInsertSqlQuery = (title, contents, id) => {
-  return `
-    INSERT INTO guestBook (title, contents, id) VALUES ('${title}', '${contents}', '${id}')
-  `;
+const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) => {
+  if (index == null) {
+    return`
+    INSERT INTO guestBook (title, contents, id ,password ,member_create) VALUES ('${title}', '${contents}', '${id}','${pw}','${member_create}')
+    ` 
+  } else {
+    return `
+    UPDATE guestBook SET title ='${title}', contents ='${contents}' WHERE idx = '${index}' 
+    `;
+ 
+  }
 };
+
  
 module.exports = {
   mainSqlQuery,
