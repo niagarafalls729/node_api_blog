@@ -48,7 +48,7 @@ const guestBookReplyListSqlQuery = (index) => {
   console.log("index,,,",index)
   let query = 'Select * from guestBook_reply';
   query += ` WHERE guestbook_fk = '${index}'`;
-  query += ' order by idx desc';
+  query += ' order by creation_timestamp ';
 
   return query;
 };
