@@ -104,8 +104,8 @@ app.post('/img', upload.single('img'), (req, res) => {
   console.log('저장된 파일의 이름', req.file.filename);
 
   // 파일이 저장된 경로를 클라이언트에게 반환해준다.
-  // const IMG_URL = `http://138.2.119.188:4000/uploads/${req.file.filename}`;
-  const IMG_URL = `http://127.0.0.1:4000/uploads/${req.file.filename}`;
+  const IMG_URL = `http://138.2.119.188:4000/uploads/${req.file.filename}`;
+  // const IMG_URL = `http://127.0.0.1:4000/uploads/${req.file.filename}`;
   console.log(IMG_URL);
   res.json({ url: IMG_URL });
 });
