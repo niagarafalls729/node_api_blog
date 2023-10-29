@@ -30,6 +30,7 @@ const guestBookListSqlQuery = (index) => {
 
   return query;
 };
+
 const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) => {
   if (index == null) {
     return`
@@ -43,11 +44,34 @@ const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) =
   }
 };
 
+const guestBookReplyListSqlQuery = (index) => {
+  console.log("index,,,",index)
+  let query = 'Select * from guestBook_reply';
+  query += ` WHERE guestbook_fk = '${index}'`;
+  query += ' order by idx desc';
+
+  return query;
+};
+const guestBookReplyInsertSqlQuery = ( contents, id,  index ,member_create,guestbook_fk) => {
+  if (index == null) {
+    return`
+    INSERT INTO guestBook_reply ( contents, id  ,member_create,guestbook_fk) VALUES ( '${contents}', '${id}','${member_create}','${guestbook_fk}' )
+    ` 
+  } else {
+    return `
+    UPDATE guestBook_reply SET   contents ='${contents}' WHERE idx = '${index}' 
+    `;
+ 
+  }
+};
  
 module.exports = {
   mainSqlQuery,
   saveUserSqlQuery,
   loginUserSqlQuery,
   guestBookListSqlQuery,
-  guestBookInsertSqlQuery
+  guestBookInsertSqlQuery,
+  guestBookReplyListSqlQuery,
+  guestBookReplyInsertSqlQuery,
+
 };
