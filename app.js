@@ -9,7 +9,7 @@ app.use(express.urlencoded({ extended: false })); // 내부 url 파서 사용
 app.use(express.static(path.join(__dirname + '/public'))); // 정적 파일 위치 설정
 app.use(bodyParser.json());
 
-const { main, saveUser,loginUser,guestBookCreate ,guestBookList,guestBookReplyList,guestBookReplyCreate} = require("./sqlExecute/index");
+const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const { upload } = require("./multer/index");
 
@@ -93,7 +93,20 @@ app.post("/guestBook/Create", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-
+// POST 요청을 받아 이미지를 BLOB 열에 저장
+app.post("/guestBook/Delete", async (req, res) => {
+  console.log("dddd")
+  try {
+    // 디비 연결!
+    const connection = await baseDbConnection(); 
+    const response = await guestBookDelete(connection, req);
+    res.send(response);
+    await connection.close();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
 app.get("/guestBook/Reply", async (req, res) => {
   const index = req.query.index;
   console.log('Received index:', index);

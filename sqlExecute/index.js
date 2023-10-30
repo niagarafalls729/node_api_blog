@@ -1,6 +1,7 @@
 const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
-  guestBookReplyInsertSqlQuery, } = require("../sqlQuery/index");
+  guestBookReplyInsertSqlQuery,
+  guestBookDeleteSqlQuery, } = require("../sqlQuery/index");
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc'); // UTC 플러그인
 const timezone = require('dayjs/plugin/timezone'); // 타임존 플러그인
@@ -173,6 +174,29 @@ const guestBookCreate = async (connection, req, filePath) => {
           reject(commitErr);
           return;
         } 
+        const jsonData = { code: "0000", message: "삭제 성공" };
+        resolve(jsonData);
+      });
+    });
+  });
+};
+const guestBookDelete = async (connection, req ) => {
+  return new Promise((resolve, reject) => {
+    const index = req.body.index;  
+    console.log("index",index)
+    connection.execute(guestBookDeleteSqlQuery(index), (err, result) => {
+      if (err) {
+        console.error("2:", err.message);
+        reject(err);
+        return;
+      }
+      // 변경 내용을 모두 반영하고 커밋 수행
+      connection.commit((commitErr) => {
+        if (commitErr) {
+          console.error("Commit error:", commitErr.message);
+          reject(commitErr);
+          return;
+        } 
         const jsonData = { code: "0000", message: "등록 성공" };
         resolve(jsonData);
       });
@@ -251,6 +275,7 @@ module.exports = {
   guestBookList,
   guestBookCreate,
   guestBookReplyList,
-  guestBookReplyCreate
+  guestBookReplyCreate,
+  guestBookDelete
 };
 

@@ -20,10 +20,10 @@ const loginUserSqlQuery = (id, pw ) => {
  
 const guestBookListSqlQuery = (index) => {
   console.log("index,,,",index)
-  let query = 'Select * from guestBook';
+  let query =` Select * from guestBook WHERE SHOW='Y' `;
 
   if (index != null) {
-    query += ` WHERE idx = '${index}'`;
+    query += ` AND idx = '${index}'  `;
   }
 
   query += ' order by idx desc';
@@ -64,7 +64,12 @@ const guestBookReplyInsertSqlQuery = ( contents, id,  index ,member_create,guest
  
   }
 };
- 
+const guestBookDeleteSqlQuery = (index) =>{
+  return `
+    UPDATE guestBook SET show ='N' WHERE idx = '${index}' 
+    `;
+}
+
 module.exports = {
   mainSqlQuery,
   saveUserSqlQuery,
@@ -73,5 +78,5 @@ module.exports = {
   guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,
-
+  guestBookDeleteSqlQuery,
 };
