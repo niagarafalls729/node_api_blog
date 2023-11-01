@@ -19,7 +19,7 @@ const loginUserSqlQuery = (id, pw ) => {
 };
  
 const guestBookListSqlQuery = (index) => {
-  console.log("index,,,",index)
+  console.log("guestBookListSqlQuery:",index)
   let query =` Select * from guestBook WHERE SHOW='Y' `;
 
   if (index != null) {
@@ -45,7 +45,7 @@ const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) =
 };
 
 const guestBookReplyListSqlQuery = (index) => {
-  console.log("index,,,",index)
+  console.log("guestBookReplyListSqlQuery:",index)
   let query = 'Select * from guestBook_reply';
   query += ` WHERE guestbook_fk = '${index}'`;
   query += ' order by creation_timestamp ';
@@ -70,6 +70,57 @@ const guestBookDeleteSqlQuery = (index) =>{
     `;
 }
 
+const studyHistoryListSqlQuery = (index) => {
+  console.log("studyHistoryListSqlQuery,,,",index)
+  let query =` Select * from studyHistory WHERE SHOW='Y' `;
+
+  if (index != null) {
+    query += ` AND idx = '${index}'  `;
+  }
+
+  query += ' order by idx desc';
+
+  return query;
+};
+
+const studyHistoryInsertSqlQuery = (title, contents, id,  index,pw,member_create) => {
+  if (index == null) {
+    return`
+    INSERT INTO studyHistory (title, contents, id ,password ,member_create) VALUES ('${title}', '${contents}', '${id}','${pw}','${member_create}')
+    ` 
+  } else {
+    return `
+    UPDATE studyHistory SET title ='${title}', contents ='${contents}' WHERE idx = '${index}' 
+    `;
+ 
+  }
+};
+
+const studyHistoryReplyListSqlQuery = (index) => {
+  console.log("studyHistoryReplyListSqlQuery:",index)
+  let query = 'Select * from studyHistory_reply';
+  query += ` WHERE guestbook_fk = '${index}'`;
+  query += ' order by creation_timestamp ';
+
+  return query;
+};
+const studyHistoryReplyInsertSqlQuery = ( contents, id,  index ,member_create,guestbook_fk) => {
+  if (index == null) {
+    return`
+    INSERT INTO studyHistory_reply ( contents, id  ,member_create,guestbook_fk) VALUES ( '${contents}', '${id}','${member_create}','${guestbook_fk}' )
+    ` 
+  } else {
+    return `
+    UPDATE studyHistory_reply SET   contents ='${contents}' WHERE idx = '${index}' 
+    `;
+ 
+  }
+};
+const studyHistoryDeleteSqlQuery = (index) =>{
+  return `
+    UPDATE studyHistory SET show ='N' WHERE idx = '${index}' 
+    `;
+}
 module.exports = {
   mainSqlQuery,
   saveUserSqlQuery,
@@ -79,4 +130,9 @@ module.exports = {
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,
   guestBookDeleteSqlQuery,
+  studyHistoryListSqlQuery,
+  studyHistoryInsertSqlQuery,
+  studyHistoryReplyListSqlQuery,
+  studyHistoryReplyInsertSqlQuery,
+  studyHistoryDeleteSqlQuery,
 };
