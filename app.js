@@ -81,7 +81,9 @@ app.get("/guestBook", async (req, res) => {
 });
 
 // POST 요청을 받아 이미지를 BLOB 열에 저장
-app.post("/guestBook/Create", async (req, res) => {
+app.post("/guestBook/create/:dynamicPath", async (req, res) => {
+  console.log("/guestBook/create")
+   const dynamicPath = req.params.dynamicPath;
   try {
     // 디비 연결!
     const connection = await baseDbConnection(); 
@@ -94,7 +96,7 @@ app.post("/guestBook/Create", async (req, res) => {
   }
 });
 // POST 요청을 받아 이미지를 BLOB 열에 저장
-app.post("/guestBook/Delete", async (req, res) => {
+app.post("/guestBook/delete/:dynamicPath", async (req, res) => {
   console.log("dddd")
   try {
     // 디비 연결!
@@ -107,7 +109,7 @@ app.post("/guestBook/Delete", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-app.get("/guestBook/Reply", async (req, res) => {
+app.get("/guestBook/reply", async (req, res) => {
   const index = req.query.index;
   console.log('Received index:', index);
   console.log('Received index:', req.query);
@@ -124,7 +126,7 @@ app.get("/guestBook/Reply", async (req, res) => {
 });
 
 // POST 요청을 받아 이미지를 BLOB 열에 저장
-app.post("/guestBook/Reply", async (req, res) => {
+app.post("/guestBook/reply", async (req, res) => {
   try {
     // 디비 연결!
     const connection = await baseDbConnection(); 

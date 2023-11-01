@@ -174,7 +174,7 @@ const guestBookCreate = async (connection, req, filePath) => {
           reject(commitErr);
           return;
         } 
-        const jsonData = { code: "0000", message: "삭제 성공" };
+        const jsonData = { code: "0000", message: "등록 성공" };
         resolve(jsonData);
       });
     });
@@ -197,7 +197,7 @@ const guestBookDelete = async (connection, req ) => {
           reject(commitErr);
           return;
         } 
-        const jsonData = { code: "0000", message: "등록 성공" };
+        const jsonData = { code: "0000", message: "삭제 성공" };
         resolve(jsonData);
       });
     });
