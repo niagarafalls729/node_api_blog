@@ -121,6 +121,12 @@ const studyHistoryDeleteSqlQuery = (index) =>{
     UPDATE studyHistory SET show ='N' WHERE idx = '${index}' 
     `;
 }
+const visitLogSqlQuery = (ip, city) =>{
+  return `
+    INSERT INTO visit_log ( ip,city) VALUES ( '${ip}', '${city}')
+   
+    `;
+}
 module.exports = {
   mainSqlQuery,
   saveUserSqlQuery,
@@ -135,4 +141,5 @@ module.exports = {
   studyHistoryReplyListSqlQuery,
   studyHistoryReplyInsertSqlQuery,
   studyHistoryDeleteSqlQuery,
+  visitLogSqlQuery
 };
