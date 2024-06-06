@@ -63,8 +63,9 @@ const main = (connection) => {
           desc: row[6],
           stack: row[7],
           work: row[8],
+          link: row[9],
         };
-      });
+      }); 
       resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
     });
   });

@@ -1,6 +1,6 @@
 const mainSqlQuery = `
   SELECT A.company, A.employment_from, A.employment_to,
-  B.PROJECT_NM, B.project_from, B.project_to, B.description, B.tech_stack, B.my_work
+  B.PROJECT_NM, B.project_from, B.project_to, B.description, B.tech_stack, B.my_work ,nvl(B.link,' ') as link
   FROM experience A
   LEFT JOIN experience_sub B
   ON A.company_cd = B.company_cd
