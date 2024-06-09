@@ -15,6 +15,8 @@ app.set('trust proxy', true);
 const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate,
         visitLog , visitCnt} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
+const keys = require("./apikey/keys");
+
 const { upload } = require("./multer/index");
 
 
@@ -162,7 +164,7 @@ app.post('/img', upload.single('img'), (req, res) => {
 /* 에디터 이미지 처리 */
 /////////////////////////////////////////////////////////////////////////////
 app.post("/weather", async (req, res) => {
-  console.log("weather")  
+  console.log("weather");  
   if(req.body.key == null){
    return res.send("Internal Server Error");
   }
@@ -180,7 +182,8 @@ app.post("/weather", async (req, res) => {
     const data = responseIP.data;  
 
     //가져온 위경도로 날씨 조회
-    const apikey = '41c8b26572aa3ab09ba3adb03e787560';
+    const apikey = keys.weatherKey;
+    console.log("aa",apikey)
     const lang = 'kr'; 
     const url = `https://api.openweathermap.org/data/2.5/weather?lat=${data.lat}&lon=${data.lon}&lang=${lang}&appid=${apikey}`;
     const responseWeather = await axios.get(url); 
