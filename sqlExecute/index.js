@@ -1,13 +1,9 @@
 const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,
-  guestBookDeleteSqlQuery,
-  studyHistoryListSqlQuery,
-  studyHistoryInsertSqlQuery,
-  studyHistoryReplyListSqlQuery,
-  studyHistoryReplyInsertSqlQuery,
-  studyHistoryDeleteSqlQuery,
+  guestBookDeleteSqlQuery, 
   visitLogSqlQuery,
+  visitCntSqlQuery,
  } = require("../sqlQuery/index");
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc'); // UTC 플러그인
@@ -272,149 +268,7 @@ const guestBookReplyCreate = async (connection, req, filePath) => {
     });
   });
 };
-////////////////////////////////////////////////////////////////////////////
-/* 공부일지 */
-/////////////////////////////////////////////////////////////////////////////
-const studyHistoryList = (connection, {index}) => {
-  return new Promise((resolve, reject) => {   
-    console.log("studyHistoryList")
-    connection.execute( studyHistoryListSqlQuery(index), (err, result) => {
-      if (err) {
-        console.error("2:", err.message);
-        reject(err); // 에러 발생 시 reject를 호출하여 프로미스를 거부합니다.
-        return;
-      }
-      const rows = result.rows;
-      // console.log("rows",rows)
-      const jsonData = rows.map((row,idx) => { 
-        return {
-          title: row[0],
-          creation_timestamp :convertToKoreanTime(row[1]),
-          id: row[2],
-          contents: row[3],
-          index : row[4] ,
-          password : row[5] ,
-          member_create: row[6],
-        };
-      });
-      // console.log("jsonData",jsonData)
-      resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
-    });
-  });
-};
-const studyHistoryCreate = async (connection, req, filePath) => {
-  return new Promise((resolve, reject) => {
-    const data = req.body; // JSON 데이터는 req.body에 저장됩니다.
-    // data 객체에서 필요한 정보를 추출하거나 처리합니다.
-    const title = data.title;
-    const contents = data.contents; 
-    const id = data.id; 
-    const index = data.index; 
-    const pw = data.password; 
-    const member_create = data.member_create; 
-    
-    connection.execute(studyHistoryInsertSqlQuery(title, contents, id,index,pw,member_create), (err, result) => {
-      if (err) {
-        console.error("2:", err.message);
-        reject(err);
-        return;
-      }
-      // 변경 내용을 모두 반영하고 커밋 수행
-      connection.commit((commitErr) => {
-        if (commitErr) {
-          console.error("Commit error:", commitErr.message);
-          reject(commitErr);
-          return;
-        } 
-        const jsonData = { code: "0000", message: "등록 성공" };
-        resolve(jsonData);
-      });
-    });
-  });
-};
-const studyHistoryDelete = async (connection, req ) => {
-  return new Promise((resolve, reject) => {
-    const index = req.body.index;  
-    console.log("index",index)
-    connection.execute(studyHistoryDeleteSqlQuery(index), (err, result) => {
-      if (err) {
-        console.error("2:", err.message);
-        reject(err);
-        return;
-      }
-      // 변경 내용을 모두 반영하고 커밋 수행
-      connection.commit((commitErr) => {
-        if (commitErr) {
-          console.error("Commit error:", commitErr.message);
-          reject(commitErr);
-          return;
-        } 
-        const jsonData = { code: "0000", message: "삭제 성공" };
-        resolve(jsonData);
-      });
-    });
-  });
-};
-
-
-const studyHistoryReplyList = (connection, {index}) => {
-  return new Promise((resolve, reject) => {   
-    connection.execute(studyHistoryReplyListSqlQuery(index), (err, result) => {
-      if (err) {
-        console.error("2:", err.message);
-        reject(err); // 에러 발생 시 reject를 호출하여 프로미스를 거부합니다.
-        return;
-      }
-      const rows = result.rows;
-      console.log("rows",rows)
-      const jsonData = rows.map((row,idx) => { 
-        return {
-          creation_timestamp :convertToKoreanTime(row[0]),
-          id: row[1],
-          contents: row[2],
-          index : row[3] ,
-          member_create: row[4],
-          guestbook_fk : row[5] ,
-        };
-      });
-      // console.log("jsonData",jsonData)
-      resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
-    });
-  });
-};
-const studyHistoryReplyCreate = async (connection, req, filePath) => {
-  return new Promise((resolve, reject) => {
-    const data = req.body; // JSON 데이터는 req.body에 저장됩니다.
-    // data 객체에서 필요한 정보를 추출하거나 처리합니다.
-    const title = data.title;
-    const contents = data.contents; 
-    const id = data.id; 
-    const index = data.index; 
-    const pw = data.password; 
-    const member_create = data.member_create; 
-    const guestbook_fk = data.guestbook_fk
-    console.log("title, contents, id,index",title, contents, id,index,pw,member_create)
-    console.log("guestBookInsertSqlQuery",guestBookReplyInsertSqlQuery(contents, id,  index ,member_create,guestbook_fk))
-    
-    connection.execute(studyHistoryReplyInsertSqlQuery(contents, id,  index ,member_create,guestbook_fk), (err, result) => {
-      if (err) {
-        console.error("2:", err.message);
-        reject(err);
-        return;
-      }
-      // 변경 내용을 모두 반영하고 커밋 수행
-      connection.commit((commitErr) => {
-        if (commitErr) {
-          console.error("Commit error:", commitErr.message);
-          reject(commitErr);
-          return;
-        } 
-        const jsonData = { code: "0000", message: "등록 성공" };
-        resolve(jsonData);
-      });
-    });
-  });
-};
+ 
 const visitLog = async (connection, req, filePath) => {
   return new Promise((resolve, reject) => {
     const data = req; // JSON 데이터는 req.body에 저장됩니다.
@@ -445,6 +299,28 @@ const visitLog = async (connection, req, filePath) => {
     });
   });
 };
+const visitCnt = async (connection) => {
+  console.log('visitCnt,isitCntSqlQuery');
+  return new Promise((resolve, reject) => { 
+    connection.execute(visitCntSqlQuery, (err, result) => { 
+      if (err) {
+        console.error("2:", err.message);
+        reject(err); // 에러 발생 시 reject를 호출하여 프로미스를 거부합니다.
+        return;
+      }
+      const rows = result.rows;
+      const jsonData = rows.map((row) => {
+        return {
+          total :row[0],
+          today: row[1],
+        }
+      });  
+      resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
+    });
+  });
+};
+
+
 module.exports = {
   main,
   saveUser,
@@ -453,12 +329,8 @@ module.exports = {
   guestBookCreate,
   guestBookReplyList,
   guestBookReplyCreate,
-  guestBookDelete,
-  studyHistoryList,
-  studyHistoryCreate,
-  studyHistoryReplyList,
-  studyHistoryReplyCreate,
-  studyHistoryDelete,
-  visitLog 
+  guestBookDelete, 
+  visitLog ,
+  visitCnt
 };
 
