@@ -13,8 +13,7 @@ app.set('trust proxy', true);
 
 
 const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate,
-        studyHistoryList,studyHistoryCreate,studyHistoryDelete,studyHistoryReplyList, studyHistoryReplyCreate,     
-        visitLog } = require("./sqlExecute/index");
+        visitLog , visitCnt} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const { upload } = require("./multer/index");
 
@@ -32,7 +31,7 @@ app.get("/main", async (req, res) => {
   try {
     // 디비 연결!
     const connection = await baseDbConnection();
-    const response = await main(connection);
+    const response = await main(connection); 
     res.send(response);
     await connection.close();
   } catch (err) {
@@ -143,79 +142,7 @@ app.post("/guestBook/reply", async (req, res) => {
     res.status(500).send("Internal Server Error");
   }
 });
-////////////////////////////////////////////////////////////////////////////
-/* 공부일지 */
-/////////////////////////////////////////////////////////////////////////////
-app.get("/studyHistory", async (req, res) => {
-  console.log("studyHistory")
-  const index = req.query.index;
-  try {
-    // 디비 연결!
-    const connection = await baseDbConnection(); 
-    const response = await studyHistoryList(connection,{index});
-    res.send(response);
-    await connection.close();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-// POST 요청을 받아 이미지를 BLOB 열에 저장
-app.post("/studyHistory/create/:dynamicPath", async (req, res) => {
-  console.log("/studyHistory/create")
-   const dynamicPath = req.params.dynamicPath;
-  try {
-    // 디비 연결!
-    const connection = await baseDbConnection(); 
-    const response = await studyHistoryCreate(connection, req);
-    res.send(response);
-    await connection.close();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
-}); 
-app.post("/studyHistory/delete/:dynamicPath", async (req, res) => {
-  console.log("dddd")
-  try {
-    // 디비 연결!
-    const connection = await baseDbConnection(); 
-    const response = await studyHistoryDelete(connection, req);
-    res.send(response);
-    await connection.close();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
-});
-app.get("/studyHistory/reply", async (req, res) => {
-  const index = req.query.index; 
-  try {
-    // 디비 연결!
-    const connection = await baseDbConnection(); 
-    const response = await studyHistoryReplyList(connection,{index});
-    res.send(response);
-    await connection.close();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
-});
-
-// POST 요청을 받아 이미지를 BLOB 열에 저장
-app.post("/studyHistory/reply", async (req, res) => {
-  try {
-    // 디비 연결!
-    const connection = await baseDbConnection(); 
-    const response = await studyHistoryReplyCreate(connection, req);
-    res.send(response);
-    await connection.close();
-  } catch (err) {
-    console.error(err);
-    res.status(500).send("Internal Server Error");
-  }
-});
+ 
 ////////////////////////////////////////////////////////////////////////////
 /* 에디터 이미지 처리 */
 /////////////////////////////////////////////////////////////////////////////
@@ -273,6 +200,19 @@ app.post("/weather", async (req, res) => {
 
     // res.send(`접속한 IP: ${ip}`);
     
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+app.post("/visitCnt", async (req, res) => { 
+  try {  
+    // 디비 연결! 
+    const connection = await baseDbConnection(); 
+    const response = await visitCnt(connection);
+    await connection.close(); 
+    res.send(response[0]);
+  
   } catch (err) {
     console.error(err);
     res.status(500).send("Internal Server Error");
