@@ -15,7 +15,7 @@ app.set('trust proxy', true);
 const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate,
         visitLog , visitCnt} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
-const keys = require("./apikey/keys");
+const keys = require("./apiKey/keys");
 
 const { upload } = require("./multer/index");
 
