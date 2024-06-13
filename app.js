@@ -3,6 +3,7 @@ const bodyParser = require("body-parser");
 const path = require('path');
 const axios = require('axios');
 const app = express();
+const cron = require('node-cron');
 
 // 미들웨어 사용
 app.use(express.json()); // json 데이터 파서
@@ -13,7 +14,7 @@ app.set('trust proxy', true);
 
 
 const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate,
-        visitLog , visitCnt} = require("./sqlExecute/index");
+        visitLog , visitCnt ,oneDaySql} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
 
@@ -29,6 +30,21 @@ app.use((_req, res, next) => {
 
   next();
 });
+
+cron.schedule('0 9 * * *', async () => {
+  console.log('매일 오전 9시에 실행되는 작업');
+  try {
+    const connection = await baseDbConnection(); // 데이터베이스 연결
+    await oneDaySql(connection); // 쿼리 실행
+    await connection.close(); // 연결 종료
+    
+  } catch (err) {
+    console.error('작업 실패:', err); 
+  }
+});
+
+
+
 app.get("/main", async (req, res) => {
   try {
     // 디비 연결!

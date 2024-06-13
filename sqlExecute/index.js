@@ -3,7 +3,8 @@ const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,g
   guestBookReplyInsertSqlQuery,
   guestBookDeleteSqlQuery, 
   visitLogSqlQuery,
-  visitCntSqlQuery,
+  visitCntSqlQuery, 
+  oneDaySqlQuery
  } = require("../sqlQuery/index");
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc'); // UTC 플러그인
@@ -13,21 +14,61 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const oracledb = require('oracledb');
-const fs = require('fs'); // 파일 시스템 모듈 
-// function convertToKoreanTime(utcTime) {
-//   console.log("utcTime",utcTime)
-//   // UTC 시간을 dayjs 객체로 파싱
-//   const utcMoment = dayjs(utcTime).utc();
 
-//   // 시간대를 한국 시간대로 설정
-//   const koreanMoment = utcMoment.tz('Asia/Seoul');
-
-//   return koreanMoment;
-// }
 function convertToKoreanTime(utcTime) {
   const koreanTime = dayjs.utc(utcTime).tz('Asia/Seoul');
   return koreanTime.format('YYYY-MM-DD HH:mm');
 }
+const fs = require('fs').promises;
+const path = require('path');
+const logDir = path.join(__dirname, '..','log');
+const logFilePath = path.join(logDir, 'cron.log');
+
+// 로그 디렉토리 존재 여부 확인 및 생성
+const ensureLogDirectory = async () => {
+  try {
+    await fs.access(logDir); // 디렉토리 접근 권한 확인
+  } catch (err) {
+    if (err.code === 'ENOENT') {
+      // 디렉토리가 존재하지 않으면 생성
+      await fs.mkdir(logDir);
+    } else {
+      throw err; // 다른 오류는 다시 던짐
+    }
+  }
+};
+
+// 로그 작성 함수 (async/await와 fs.promises 사용)
+const writeLog = async (message) => {
+  
+  const timestamp = new Date().toISOString();
+  const logMessage = `${timestamp} - ${message}\n`;
+  try {
+    await fs.appendFile(logFilePath, logMessage);
+    console.log('로그 작성 완료:', logMessage);
+  } catch (err) {
+    console.error('로그 파일 작성 중 오류 발생:', err);
+  }
+};
+const oneDaySql = (connection) => {
+  console.log('oneDaySql'); 
+  ensureLogDirectory();
+  return new Promise((resolve, reject) => {
+    connection.execute(oneDaySqlQuery, async (err, result) => {
+      if (err) {
+        console.error('작업 실패:', err);
+        await writeLog(`작업 실패: ${err.message}`);
+        reject(err);
+        return;
+      }
+      // 작업 성공 처리
+      console.log('작업 성공:', result);
+      await writeLog('작업 성공');
+      resolve(result);
+    });
+  });
+};
+
 const main = (connection) => {
   return new Promise((resolve, reject) => {
     // console.log("main",JSON.stringify(mainSqlQuery))
@@ -331,6 +372,7 @@ module.exports = {
   guestBookReplyCreate,
   guestBookDelete, 
   visitLog ,
-  visitCnt
+  visitCnt ,
+  oneDaySql
 };
 

@@ -85,7 +85,10 @@ const visitCntSqlQuery =
       (SELECT COUNT(*) as total FROM visit_log) total_visitors,
       (SELECT COUNT(*) as today FROM visit_log WHERE TRUNC(datetime) = TRUNC(SYSDATE)) today_visitors  
  `; 
- 
+const  oneDaySqlQuery = 
+  `
+  SELECT * FROM visit_log
+  `;
 module.exports = {
   mainSqlQuery,
   saveUserSqlQuery,
@@ -96,5 +99,6 @@ module.exports = {
   guestBookReplyInsertSqlQuery,
   guestBookDeleteSqlQuery, 
   visitLogSqlQuery,
-  visitCntSqlQuery
+  visitCntSqlQuery, 
+  oneDaySqlQuery,
 };
