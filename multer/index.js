@@ -15,8 +15,10 @@ const upload = multer({
         // 파일이름 + 현재시간밀리초 + 파일확장자명
         cb(null, path.basename(file.originalname, ext) + Date.now() + ext);
       }
-    })
-    // limits: { fileSize: 5 * 1024 * 1024 } // 파일 크기 제한
+    }),
+    limits: { 
+      fileSize: 10 * 1024 * 1024 // 10MB 파일 크기 제한
+    }
   });
 
 

@@ -1,3 +1,4 @@
+//test
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require('path');
@@ -13,7 +14,7 @@ app.use(bodyParser.json());
 app.set('trust proxy', true);
 
 
-const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookReplyList,guestBookReplyCreate,
+const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookCount,guestBookReplyList,guestBookReplyCreate,
         visitLog , visitCnt ,oneDaySql} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
@@ -48,6 +49,7 @@ cron.schedule('0 9 * * *', async () => {
 app.get("/main", async (req, res) => {
   try {
     // 디비 연결!
+    console.log("디비연결 시도");
     const connection = await baseDbConnection();
     const response = await main(connection); 
     res.send(response);
@@ -91,12 +93,59 @@ app.post("/login", async (req, res) => {
 
 app.get("/guestBook", async (req, res) => {
   const index = req.query.index;
-  console.log('guestBook:', index);
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  console.log('guestBook:', index, page, limit);
   try {
     // 디비 연결!
     const connection = await baseDbConnection(); 
-    const response = await guestBookList(connection,{index});
-    res.send(response);
+    
+    // 페이지네이션된 데이터와 총 개수를 동시에 조회
+    const [response, total] = await Promise.all([
+      guestBookList(connection, {index, page, limit}),
+      guestBookCount(connection)
+    ]);
+    
+    res.send({
+      data: response,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
+    await connection.close();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+app.get("/studyHistoryback", async (req, res) => {
+  const index = req.query.index;
+  const page = parseInt(req.query.page) || 1;
+  const limit = parseInt(req.query.limit) || 10;
+  console.log('studyHistoryback:', index, page, limit);
+  try {
+    // 디비 연결!
+    const connection = await baseDbConnection(); 
+    
+    // 페이지네이션된 데이터와 총 개수를 동시에 조회
+    const [response, total] = await Promise.all([
+      guestBookList(connection, {index, page, limit}),
+      guestBookCount(connection)
+    ]);
+    
+    res.send({
+      data: response,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit)
+      }
+    });
     await connection.close();
   } catch (err) {
     console.error(err);
@@ -172,8 +221,8 @@ app.post('/img', upload.single('img'), (req, res) => {
   // console.log('저장된 파일의 이름', req.file.filename);
 
   // 파일이 저장된 경로를 클라이언트에게 반환해준다.
-  const IMG_URL = `http://138.2.119.188:4000/uploads/${req.file.filename}`;
-  // const IMG_URL = `http://127.0.0.1:4000/uploads/${req.file.filename}`; 
+  // const IMG_URL = `http://138.2.119.188:4000/uploads/${req.file.filename}`;
+  const IMG_URL = `http://127.0.0.1:4000/uploads/${req.file.filename}`; 
   res.json({ url: IMG_URL });
 });
 ////////////////////////////////////////////////////////////////////////////

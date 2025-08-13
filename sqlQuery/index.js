@@ -18,17 +18,25 @@ const loginUserSqlQuery = (id, pw ) => {
   `;
 };
  
-const guestBookListSqlQuery = (index) => {
-  console.log("guestBookListSqlQuery:",index)
-  let query =` Select * from guestBook WHERE SHOW='Y' `;
+const guestBookListSqlQuery = (index, page = 1, limit = 10) => {
+  console.log("guestBookListSqlQuery:", index, page, limit)
+  let query = `SELECT * FROM (
+    SELECT a.*, ROWNUM rnum FROM (
+      SELECT * FROM guestBook WHERE SHOW='Y'`;
 
   if (index != null) {
-    query += ` AND idx = '${index}'  `;
+    query += ` AND idx = '${index}'`;
   }
 
-  query += ' order by idx desc';
+  query += ` ORDER BY idx DESC
+    ) a WHERE ROWNUM <= ${page * limit}
+  ) WHERE rnum > ${(page - 1) * limit}`;
 
   return query;
+};
+
+const guestBookCountSqlQuery = () => {
+  return `SELECT COUNT(*) as total FROM guestBook WHERE SHOW='Y'`;
 };
 
 const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) => {
@@ -94,6 +102,7 @@ module.exports = {
   saveUserSqlQuery,
   loginUserSqlQuery,
   guestBookListSqlQuery,
+  guestBookCountSqlQuery,
   guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,

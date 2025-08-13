@@ -1,4 +1,4 @@
-const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookInsertSqlQuery,
+const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookCountSqlQuery,guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,
   guestBookDeleteSqlQuery, 
@@ -165,10 +165,10 @@ const loginUser = (connection, req) => {
     });
   });
 };
-const guestBookList = (connection, {index}) => {
+const guestBookList = (connection, {index, page = 1, limit = 10}) => {
   return new Promise((resolve, reject) => {   
     
-    connection.execute( guestBookListSqlQuery(index), (err, result) => {
+    connection.execute( guestBookListSqlQuery(index, page, limit), (err, result) => {
       if (err) {
         console.error("2:", err.message);
         reject(err); // 에러 발생 시 reject를 호출하여 프로미스를 거부합니다.
@@ -189,6 +189,21 @@ const guestBookList = (connection, {index}) => {
       });
       // console.log("jsonData",jsonData)
       resolve(jsonData); // 성공 시 resolve를 호출하여 프로미스를 해결합니다.
+    });
+  });
+};
+
+const guestBookCount = (connection) => {
+  return new Promise((resolve, reject) => {   
+    
+    connection.execute( guestBookCountSqlQuery(), (err, result) => {
+      if (err) {
+        console.error("2:", err.message);
+        reject(err);
+        return;
+      }
+      const total = result.rows[0][0];
+      resolve(total);
     });
   });
 };
@@ -367,6 +382,7 @@ module.exports = {
   saveUser,
   loginUser,
   guestBookList,
+  guestBookCount,
   guestBookCreate,
   guestBookReplyList,
   guestBookReplyCreate,
