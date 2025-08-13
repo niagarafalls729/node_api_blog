@@ -39,6 +39,11 @@ const guestBookCountSqlQuery = () => {
   return `SELECT COUNT(*) as total FROM guestBook WHERE SHOW='Y'`;
 };
 
+// 단일 게시글 조회를 위한 새로운 쿼리
+const guestBookDetailSqlQuery = (index) => {
+  return `SELECT * FROM guestBook WHERE SHOW='Y' AND idx = '${index}'`;
+};
+
 const guestBookInsertSqlQuery = (title, contents, id,  index,pw,member_create) => {
   if (index == null) {
     return`
@@ -103,6 +108,7 @@ module.exports = {
   loginUserSqlQuery,
   guestBookListSqlQuery,
   guestBookCountSqlQuery,
+  guestBookDetailSqlQuery,
   guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,

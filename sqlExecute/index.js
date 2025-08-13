@@ -1,9 +1,9 @@
-const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookCountSqlQuery,guestBookInsertSqlQuery,
+const { mainSqlQuery, saveUserSqlQuery,loginUserSqlQuery,guestBookListSqlQuery,guestBookCountSqlQuery,guestBookDetailSqlQuery,guestBookInsertSqlQuery,
   guestBookReplyListSqlQuery,
   guestBookReplyInsertSqlQuery,
-  guestBookDeleteSqlQuery, 
+  guestBookDeleteSqlQuery,
   visitLogSqlQuery,
-  visitCntSqlQuery, 
+  visitCntSqlQuery,
   oneDaySqlQuery
  } = require("../sqlQuery/index");
 const dayjs = require('dayjs');
@@ -194,8 +194,9 @@ const guestBookList = (connection, {index, page = 1, limit = 10}) => {
 };
 
 const guestBookCount = (connection) => {
-  return new Promise((resolve, reject) => {   
-    
+  return new Promise((resolve, reject) => {
+
+
     connection.execute( guestBookCountSqlQuery(), (err, result) => {
       if (err) {
         console.error("2:", err.message);
@@ -204,6 +205,40 @@ const guestBookCount = (connection) => {
       }
       const total = result.rows[0][0];
       resolve(total);
+    });
+  });
+};
+
+// 단일 게시글 조회 함수 추가
+const guestBookDetail = (connection, { index }) => {
+  return new Promise((resolve, reject) => {
+    console.log("guestBookDetail 호출:", index);
+    connection.execute(guestBookDetailSqlQuery(index), (err, result) => {
+      if (err) {
+        console.error("guestBookDetail 에러:", err.message);
+        reject(err);
+        return;
+      }
+      const rows = result.rows;
+      console.log("guestBookDetail 결과:", rows);
+      
+      if (rows.length === 0) {
+        resolve(null);
+        return;
+      }
+      
+      const row = rows[0];
+      const jsonData = {
+        title: row[0],
+        creation_timestamp: convertToKoreanTime(row[1]),
+        id: row[2],
+        contents: row[3],
+        index: row[4],
+        password: row[5],
+        member_create: row[6],
+      };
+      console.log("guestBookDetail 변환된 데이터:", jsonData);
+      resolve(jsonData);
     });
   });
 };
@@ -389,6 +424,7 @@ module.exports = {
   guestBookDelete, 
   visitLog ,
   visitCnt ,
-  oneDaySql
+  oneDaySql,
+  guestBookDetail
 };
 

@@ -7,15 +7,15 @@ const app = express();
 const cron = require('node-cron');
 
 // 미들웨어 사용
-app.use(express.json()); // json 데이터 파서
-app.use(express.urlencoded({ extended: false })); // 내부 url 파서 사용
+app.use(express.json({ limit: '50mb' })); // json 데이터 파서
+app.use(express.urlencoded({ extended: false, limit: '50mb' })); // 내부 url 파서 사용
 app.use(express.static(path.join(__dirname + '/public'))); // 정적 파일 위치 설정
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '50mb' }));
 app.set('trust proxy', true);
 
 
 const { main, saveUser,loginUser,guestBookCreate ,guestBookDelete,guestBookList,guestBookCount,guestBookReplyList,guestBookReplyCreate,
-        visitLog , visitCnt ,oneDaySql} = require("./sqlExecute/index");
+        visitLog , visitCnt ,oneDaySql, guestBookDetail} = require("./sqlExecute/index");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
 
@@ -115,6 +115,21 @@ app.get("/guestBook", async (req, res) => {
         totalPages: Math.ceil(total / limit)
       }
     });
+    await connection.close();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
+// 단일 게시글 조회 API 추가
+app.get("/guestBook/detail/:index", async (req, res) => {
+  const index = req.params.index;
+  console.log('guestBook/detail:', index);
+  try {
+    const connection = await baseDbConnection();
+    const response = await guestBookDetail(connection, { index });
+    res.send(response);
     await connection.close();
   } catch (err) {
     console.error(err);
