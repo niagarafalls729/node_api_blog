@@ -187,13 +187,14 @@ const guestBookList = (connection, { index, page = 1, limit = 10 }) => {
         // console.log("rows",rows)
         const jsonData = rows.map((row, idx) => {
           return {
-            title: row[0],
-            creation_timestamp: convertToKoreanTime(row[1]),
-            id: row[2],
-            contents: row[3],
-            index: row[4],
-            password: row[5],
-            member_create: row[6],
+            title: row[0],           // g.title
+            creation_timestamp: convertToKoreanTime(row[1]), // g.creation_timestamp
+            id: row[2],              // g.id
+            contents: row[3],        // g.contents
+            index: row[4],           // g.idx
+            password: row[5],        // g.password
+            member_create: row[6],   // g.member_create
+            replyCount: row[7] || 0, // reply_count
           };
         });
         // console.log("jsonData",jsonData)
@@ -347,6 +348,7 @@ const guestBookReplyList = (connection, { index }) => {
     });
   });
 };
+
 const guestBookReplyCreate = async (connection, req, filePath) => {
   return new Promise((resolve, reject) => {
     const data = req.body; // JSON 데이터는 req.body에 저장됩니다.

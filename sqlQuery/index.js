@@ -22,13 +22,19 @@ const guestBookListSqlQuery = (index, page = 1, limit = 10) => {
   console.log("guestBookListSqlQuery:", index, page, limit);
   let query = `SELECT * FROM (
     SELECT a.*, ROWNUM rnum FROM (
-      SELECT * FROM guestBook WHERE SHOW='Y'`;
+      SELECT g.title, g.creation_timestamp, g.id, g.contents, g.idx, g.password, g.member_create, NVL(r.reply_count, 0) as reply_count FROM guestBook g
+      LEFT JOIN (
+        SELECT guestbook_fk, COUNT(*) as reply_count 
+        FROM guestBook_reply 
+        GROUP BY guestbook_fk
+      ) r ON g.idx = r.guestbook_fk
+      WHERE g.SHOW='Y'`;
 
   if (index != null) {
-    query += ` AND idx = '${index}'`;
+    query += ` AND g.idx = '${index}'`;
   }
 
-  query += ` ORDER BY idx DESC
+  query += ` ORDER BY g.idx DESC
     ) a WHERE ROWNUM <= ${page * limit}
   ) WHERE rnum > ${(page - 1) * limit}`;
 
@@ -71,6 +77,7 @@ const guestBookReplyListSqlQuery = (index) => {
 
   return query;
 };
+
 const guestBookReplyInsertSqlQuery = (
   contents,
   id,
