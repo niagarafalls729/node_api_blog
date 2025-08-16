@@ -139,7 +139,7 @@ router.delete('/cleanup', async (req, res) => {
 // 디시인사이드 실시간베스트 크롤링
 router.post('/dcinside/best', async (req, res) => {
   try {
-    const { galleryId = 'hit', maxPages = 1 } = req.body;
+    const { galleryId = 'dcbest', maxPages = 1 } = req.body;
     
     console.log(`디시인사이드 ${galleryId} 갤러리 크롤링 시작`);
     
@@ -165,7 +165,7 @@ router.post('/dcinside/best', async (req, res) => {
 // 디시인사이드 게시글 상세 크롤링
 router.post('/dcinside/post', async (req, res) => {
   try {
-    const { postId, galleryId = 'hit' } = req.body;
+    const { postId, galleryId = 'dcbest' } = req.body;
     
     if (!postId) {
       return res.status(400).json({ error: '게시글 ID가 필요합니다.' });

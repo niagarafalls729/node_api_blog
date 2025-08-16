@@ -55,8 +55,8 @@ class DCInsideCrawlerSimple {
           
                      // 제목 추출 (댓글 수 제거)
            let title = $post.find('.ub-word a').text().trim();
-           // 댓글 수 [숫자] 제거
-           title = title.replace(/\[\d+\]$/, '').trim();
+                       // 댓글 수 [숫자] 또는 [숫자/숫자] 제거
+            title = title.replace(/\[\d+(?:\/\d+)?\]$/, '').trim();
           
           // 작성자 추출
           const author = $post.find('.ub-writer').text().trim();

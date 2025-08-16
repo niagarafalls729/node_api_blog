@@ -11,6 +11,7 @@ class CrawlerDatabase {
   async connect() {
     try {
       this.connection = await baseDbConnection();
+      console.log('크롤링 데이터베이스 연결 성공');
     } catch (error) {
       console.error('크롤링 데이터베이스 연결 실패:', error);
       throw error;
