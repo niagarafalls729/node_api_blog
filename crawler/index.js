@@ -3,7 +3,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const cron = require('node-cron');
 const { crawlerDB } = require('./database');
-const { dcInsideCrawler } = require('./dcinsideCrawler');
+const { dcInsideCrawler } = require('./dcinsideCrawlerSimple');
 const { imageProcessor } = require('./imageProcessor');
 
 const router = express.Router();
