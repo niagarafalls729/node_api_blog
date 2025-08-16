@@ -9,7 +9,7 @@ const cron = require("node-cron");
 // 미들웨어 사용
 app.use(express.json({ limit: "50mb" })); // json 데이터 파서
 app.use(express.urlencoded({ extended: false, limit: "50mb" })); // 내부 url 파서 사용
-app.use(express.static(path.join(__dirname + "/public"))); // 정적 파일 위치 설정
+app.use(express.static(path.join(__dirname, "public"))); // 정적 파일 위치 설정
 app.use(bodyParser.json({ limit: "50mb" }));
 app.set("trust proxy", true);
 
@@ -30,10 +30,13 @@ const {
   updatePassword,
   updateEmail,
 } = require("./sqlExecute/index");
+
+const { getDCBestPosts, getDCBestPostDetail } = require("./controller/dcbest");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
 
 const { upload } = require("./multer/index");
+const { router: crawlerRouter, setupScheduledCrawling } = require("./crawler/index");
 
 const cors = require("cors");
 
@@ -45,6 +48,9 @@ app.use((_req, res, next) => {
   next();
 });
 
+// 크롤링 라우터 추가
+app.use("/crawler", crawlerRouter);
+
 cron.schedule("0 9 * * *", async () => {
   console.log("매일 오전 9시에 실행되는 작업");
   try {
@@ -53,6 +59,22 @@ cron.schedule("0 9 * * *", async () => {
     await connection.close(); // 연결 종료
   } catch (err) {
     console.error("작업 실패:", err);
+  }
+});
+
+// 매일 10분마다 디시인사이드 크롤링 실행
+cron.schedule("*/10 * * * *", async () => {
+  console.log("매일 10분마다 디시인사이드 크롤링 실행");
+  try {
+    // 실시간베스트 크롤링 (1페이지)
+    const axios = require('axios');
+    const response = await axios.post('http://localhost:4000/crawler/dcinside/best', {
+      galleryId: 'hit',
+      maxPages: 1
+    });
+    console.log('크롤링 완료:', response.data);
+  } catch (err) {
+    console.error("크롤링 실패:", err);
   }
 });
 
@@ -97,6 +119,13 @@ app.post("/login", async (req, res) => {
   }
 });
 ////////////////////////////////////////////////////////////////////////////
+/* 실시간베스트 */
+/////////////////////////////////////////////////////////////////////////////
+
+app.get("/dcbest", getDCBestPosts);
+
+app.get("/dcbest/:postId", getDCBestPostDetail);
+
 /* 방명록 */
 /////////////////////////////////////////////////////////////////////////////
 
@@ -358,4 +387,8 @@ app.post("/updateEmail", async (req, res) => {
 
 app.listen(4000, () => {
   console.log("서버가 실행되었습니다.");
+  
+  // 크롤링 스케줄러 시작
+  setupScheduledCrawling();
+  console.log("크롤링 스케줄러가 시작되었습니다.");
 });
