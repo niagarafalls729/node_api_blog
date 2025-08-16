@@ -9,13 +9,6 @@ const CRAWLER_CONFIG = require('../config');
 
 const router = express.Router();
 
-// 크롤링 기본 설정
-const CRAWLER_CONFIG = {
-  userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-  timeout: 10000,
-  retryCount: 3
-};
-
 // 기본 크롤링 함수
 async function crawlWebsite(url, selector = null) {
   try {
