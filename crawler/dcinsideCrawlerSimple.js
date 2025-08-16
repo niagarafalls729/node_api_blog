@@ -1,7 +1,7 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
 const { imageProcessor } = require('./imageProcessor');
-const { crawlerDB } = require('./database');
+const { crawlerDB, oracledb } = require('./database');
 
 class DCInsideCrawlerSimple {
   constructor() {
@@ -373,7 +373,7 @@ class DCInsideCrawlerSimple {
         postId: post.postId,
         title: post.title,
         author: post.author,
-        content: content,
+        content: { val: content || '', type: oracledb.CLOB },
         postUrl: post.postUrl,
         postDate: post.postDate,
         viewCount: post.viewCount,
@@ -394,6 +394,77 @@ class DCInsideCrawlerSimple {
   // 지연 함수
   delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  // crawlGallery 메서드 추가 (index.js 호환성)
+  async crawlGallery(galleryId = 'dcbest', maxPages = 1) {
+    try {
+      console.log(`디시인사이드 ${galleryId} 갤러리 크롤링 시작 (최대 ${maxPages}페이지)`);
+      
+      // 설정 업데이트
+      this.config.galleryId = galleryId;
+      this.config.maxPages = maxPages;
+      
+      let allPosts = [];
+      
+      for (let page = 1; page <= maxPages; page++) {
+        console.log(`\n--- ${page}페이지 크롤링 중 ---`);
+        
+        // 게시글 목록 크롤링
+        const posts = await this.crawlBestPosts(page);
+        
+        if (posts.length === 0) {
+          console.log('더 이상 게시글이 없습니다.');
+          break;
+        }
+        
+        // 각 게시글의 상세 내용 크롤링
+        for (const post of posts) {
+          try {
+            console.log(`게시글 상세 크롤링: ${post.postId}`);
+            
+            // 중복 체크
+            if (this.config.checkDuplicate && await this.checkDuplicate(post.postId)) {
+              console.log(`중복 게시글 건너뛰기: ${post.postId}`);
+              continue;
+            }
+            
+                         // 게시글 상세 내용 크롤링
+             const content = await this.crawlPostDetail(post.postId);
+             
+             // 이미지 처리
+             const processedContent = await this.processImagesInContent(content.content, post.postId);
+             
+             // 데이터베이스에 저장
+             await this.savePostWithContent(post, processedContent);
+            
+            console.log(`게시글 저장 완료: ${post.postId}`);
+            
+            // 요청 간격 대기
+            await this.delay(this.config.delay);
+            
+          } catch (error) {
+            console.error(`게시글 ${post.postId} 처리 실패:`, error);
+          }
+        }
+        
+        allPosts = allPosts.concat(posts);
+        console.log(`${page}페이지 완료! (${posts.length}개 게시글)`);
+      }
+      
+      console.log(`\n=== ${galleryId} 갤러리 크롤링 완료 (총 ${allPosts.length}개 게시글) ===`);
+      return allPosts;
+      
+    } catch (error) {
+      console.error('크롤링 실패:', error);
+      throw error;
+    } finally {
+      // 데이터베이스 연결 종료
+      if (crawlerDB.connection) {
+        await crawlerDB.close();
+        console.log('데이터베이스 연결 종료');
+      }
+    }
   }
 
   // 메인 크롤링 함수 (페이지 기준)
@@ -436,4 +507,5 @@ class DCInsideCrawlerSimple {
   }
 }
 
-module.exports = { DCInsideCrawlerSimple };
+const dcInsideCrawler = new DCInsideCrawlerSimple();
+module.exports = { DCInsideCrawlerSimple, dcInsideCrawler };
