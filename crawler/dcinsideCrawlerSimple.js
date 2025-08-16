@@ -2,21 +2,21 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { imageProcessor } = require('./imageProcessor');
 const { crawlerDB, oracledb } = require('./database');
+const CRAWLER_CONFIG = require('./config');
 
 class DCInsideCrawlerSimple {
   constructor() {
     this.config = {
       baseUrl: 'https://gall.dcinside.com',
-      galleryId: 'dcbest', // 실시간베스트 갤러리
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      timeout: 15000,
-      delay: 1000, // 요청 간격 (ms)
-      maxRetries: 3,
-      // 크롤링 기준 설정
-      timeWindow: 10, // 분 단위 (최근 10분)
-      maxPages: 1, // 최대 페이지 수 (1페이지만)
-             checkDuplicate: true, // 중복 체크 여부
-      useTimeFilter: false // 시간 필터 사용 여부 (실시간베스트는 페이지 순서로 판단)
+      galleryId: CRAWLER_CONFIG.GALLERY_ID,
+      userAgent: CRAWLER_CONFIG.USER_AGENT,
+      timeout: CRAWLER_CONFIG.TIMEOUT,
+      delay: CRAWLER_CONFIG.DELAY,
+      maxRetries: CRAWLER_CONFIG.MAX_RETRIES,
+      timeWindow: CRAWLER_CONFIG.TIME_WINDOW,
+      maxPages: CRAWLER_CONFIG.MAX_PAGES,
+      checkDuplicate: CRAWLER_CONFIG.CHECK_DUPLICATE,
+      useTimeFilter: CRAWLER_CONFIG.USE_TIME_FILTER
     };
   }
 
@@ -397,7 +397,7 @@ class DCInsideCrawlerSimple {
   }
 
   // crawlGallery 메서드 추가 (index.js 호환성)
-  async crawlGallery(galleryId = 'dcbest', maxPages = 1) {
+  async crawlGallery(galleryId = CRAWLER_CONFIG.GALLERY_ID, maxPages = CRAWLER_CONFIG.MAX_PAGES) {
     try {
       console.log(`디시인사이드 ${galleryId} 갤러리 크롤링 시작 (최대 ${maxPages}페이지)`);
       

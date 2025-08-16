@@ -34,6 +34,7 @@ const {
 const { getDCBestPosts, getDCBestPostDetail } = require("./controller/dcbest");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
+const CRAWLER_CONFIG = require("./crawler/config");
 
 const { upload } = require("./multer/index");
 const { router: crawlerRouter, setupScheduledCrawling } = require("./crawler/index");
@@ -69,8 +70,8 @@ cron.schedule("*/10 * * * *", async () => {
     // 실시간베스트 크롤링 (1페이지)
     const axios = require('axios');
     const response = await axios.post('http://localhost:4000/crawler/dcinside/best', {
-      galleryId: 'hit',
-      maxPages: 1
+      galleryId: CRAWLER_CONFIG.GALLERY_ID,
+      maxPages: CRAWLER_CONFIG.MAX_PAGES
     });
     console.log('크롤링 완료:', response.data);
   } catch (err) {
