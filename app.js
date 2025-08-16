@@ -146,6 +146,21 @@ app.get("/guestBook/detail/:index", async (req, res) => {
   }
 });
 
+// studyHistoryback 단일 게시글 조회 API 추가
+app.get("/studyHistoryback/detail/:index", async (req, res) => {
+  const index = req.params.index;
+  console.log("studyHistoryback/detail:", index);
+  try {
+    const connection = await baseDbConnection();
+    const response = await guestBookDetail(connection, { index });
+    res.send(response);
+    await connection.close();
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Internal Server Error");
+  }
+});
+
 app.get("/studyHistoryback", async (req, res) => {
   const index = req.query.index;
   const page = parseInt(req.query.page) || 1;
