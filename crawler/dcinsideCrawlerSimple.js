@@ -24,6 +24,7 @@ class DCInsideCrawlerSimple {
   async crawlBestPosts(page = 1) {
     try {
       console.log(`실시간베스트 크롤링 시작... (페이지: ${page})`);
+      console.log(`크롤링 URL: ${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`);
       
       const url = `${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`;
       const response = await axios.get(url, {
