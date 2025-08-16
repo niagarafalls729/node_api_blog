@@ -34,7 +34,7 @@ const {
 const { getDCBestPosts, getDCBestPostDetail } = require("./controller/dcbest");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
-const CRAWLER_CONFIG = require("./crawler/config");
+const CRAWLER_CONFIG = require("./config");
 
 const { upload } = require("./multer/index");
 const { router: crawlerRouter, setupScheduledCrawling } = require("./crawler/index");

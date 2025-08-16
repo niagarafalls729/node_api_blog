@@ -2,7 +2,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const { imageProcessor } = require('./imageProcessor');
 const { crawlerDB, oracledb } = require('./database');
-const CRAWLER_CONFIG = require('./config');
+const CRAWLER_CONFIG = require('../config');
 
 class DCInsideCrawlerSimple {
   constructor() {
