@@ -1,56 +1,47 @@
-const { dcInsideCrawler } = require('./dcinsideCrawlerSimple');
+const { DCInsideCrawler } = require('./dcinsideCrawlerSimple');
+const { crawlerDB } = require('./database');
 
 async function testSpecificPost() {
+  const dcInsideCrawler = new DCInsideCrawler();
+  const postId = '356375'; // 테스트할 게시글 ID
+
   try {
-    console.log('특정 게시글 테스트 시작...');
+    console.log(`게시글 ${postId} 크롤링 시작...`);
     
-    // HTML 파일에서 확인한 이미지 게시글 ID들
-    const testPostIds = [356225, 356233, 356232, 356230, 356228, 356227];
+    // 게시글 상세 정보 크롤링
+    const detail = await dcInsideCrawler.crawlPostDetail(postId);
+    console.log('원본 내용 길이:', detail.content?.length || 0);
     
-    for (const postId of testPostIds) {
-      console.log(`\n--- 게시글 ${postId} 테스트 ---`);
-      
-      try {
-        const detail = await dcInsideCrawler.crawlPostDetail(postId);
-        console.log(`이미지 개수: ${detail.imageUrls.length}`);
-        console.log(`콘텐츠 길이: ${detail.content.length}`);
-        
-        if (detail.imageUrls.length > 0) {
-          console.log('발견된 이미지들:');
-          detail.imageUrls.forEach((url, index) => {
-            console.log(`  ${index + 1}. ${url}`);
-          });
-        }
-        
-        // 이미지 처리 테스트
-        const processedContent = await dcInsideCrawler.processImagesInContent(detail.content, postId);
-        console.log(`처리된 콘텐츠 길이: ${processedContent.length}`);
-        
-        // 콘텐츠 미리보기 (처음 200자)
-        const preview = processedContent.substring(0, 200);
-        console.log(`콘텐츠 미리보기: ${preview}...`);
-        
-      } catch (error) {
-        console.error(`게시글 ${postId} 처리 실패:`, error.message);
-      }
-      
-      // 2초 대기
-      await new Promise(resolve => setTimeout(resolve, 2000));
-    }
+    // 이미지 처리 전 내용 출력 (처음 500자)
+    console.log('이미지 처리 전 내용 (처음 500자):');
+    console.log(detail.content?.substring(0, 500));
     
-    console.log('\n테스트 완료!');
+    // 이미지 처리
+    const processedContent = await dcInsideCrawler.processImagesInContent(detail.content, postId);
+    console.log('이미지 처리 후 내용 길이:', processedContent?.length || 0);
+    
+    // 이미지 처리 후 내용 출력 (처음 500자)
+    console.log('이미지 처리 후 내용 (처음 500자):');
+    console.log(processedContent?.substring(0, 500));
+    
+    // 데이터베이스에 저장
+    const post = {
+      postId: postId,
+      title: detail.title || '테스트 게시글',
+      author: detail.author || '테스트 작성자',
+      postUrl: `https://gall.dcinside.com/board/view/?id=dcbest&no=${postId}`,
+      postDate: new Date(),
+      viewCount: 0
+    };
+    
+    await dcInsideCrawler.savePostWithContent(post, processedContent);
+    console.log('데이터베이스 저장 완료');
     
   } catch (error) {
-    console.error('테스트 중 오류 발생:', error);
+    console.error('테스트 실패:', error);
   } finally {
-    // 데이터베이스 연결 종료
-    const { crawlerDB } = require('./database');
-    if (crawlerDB.connection) {
-      await crawlerDB.close();
-      console.log('데이터베이스 연결 종료');
-    }
+    await crawlerDB.close();
   }
 }
 
-// 테스트 실행
 testSpecificPost();

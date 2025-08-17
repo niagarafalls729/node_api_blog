@@ -128,6 +128,12 @@ const getDCBestPostDetail = async (req, res) => {
       }
     }
     
+    // 이미지 오류 핸들러 정리
+    if (content) {
+      // onerror 이벤트 핸들러 통일
+      content = content.replace(/onerror="[^"]*"/g, 'onerror="this.style.display=\'none\';"');
+    }
+    
     const post = {
       POST_ID: String(row.POST_ID || ''),
       TITLE: String(row.TITLE || ''),
@@ -176,9 +182,7 @@ const getDCBestPostDetail = async (req, res) => {
       images: images
     };
 
-    res.json({
-      data: responseData
-    });
+    res.json(responseData);
 
   } catch (error) {
     console.error('실시간베스트 게시글 상세 조회 실패:', error);

@@ -231,6 +231,12 @@ class DCInsideCrawler {
     if (!url) return false;
     const invalid = ['loading', 'gallview_loading'];
     if (invalid.some(i => url.includes(i))) return false;
+    
+    // dcimg URL도 허용 (실제 이미지 URL)
+    if (url.includes('dcimg') || url.includes('dcinside.co.kr')) {
+      return true;
+    }
+    
     return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   }
 
@@ -240,16 +246,30 @@ class DCInsideCrawler {
     let processedContent = content;
 
     for (const img of $('img').toArray()) {
-      const src = $(img).attr('src');
-      if (!src || !this.isValidImageUrl(src)) continue;
-      const normalizedUrl = this.normalizeImageUrl(src);
+      let imageUrl = $(img).attr('src');
+      const dataOriginal = $(img).attr('data-original');
+      
+      // data-original이 있으면 그것을 우선 사용 (실제 이미지 URL)
+      if (dataOriginal && this.isValidImageUrl(dataOriginal)) {
+        imageUrl = dataOriginal;
+      }
+      
+      // src가 로딩 이미지인 경우 data-original 사용
+      if (imageUrl && imageUrl.includes('gallview_loading_ori.gif') && dataOriginal) {
+        imageUrl = dataOriginal;
+      }
+      
+      if (!imageUrl || !this.isValidImageUrl(imageUrl)) continue;
+      const normalizedUrl = this.normalizeImageUrl(imageUrl);
 
       try {
+        console.log(`이미지 처리 중: ${normalizedUrl}`);
         const imageInfo = await imageProcessor.processImageHybrid(normalizedUrl, postId, false);
         if (imageInfo?.processed && imageInfo.localPath) {
           const originalTag = $.html(img);
-          const newTag = `<img src="/crawled_images/${imageInfo.fileName}" alt="크롤링된 이미지" />`;
+          const newTag = `<img src="/crawled_images/${imageInfo.fileName}" alt="크롤링된 이미지" onerror="this.style.display='none';" />`;
           processedContent = processedContent.replace(originalTag, newTag);
+          console.log(`이미지 처리 완료: ${imageInfo.fileName}`);
         }
       } catch (err) {
         console.error(`이미지 처리 실패 (${normalizedUrl}):`, err.message);
