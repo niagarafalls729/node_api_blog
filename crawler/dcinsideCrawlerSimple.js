@@ -24,9 +24,16 @@ class DCInsideCrawlerSimple {
   async crawlBestPosts(page = 1) {
     try {
       console.log(`실시간베스트 크롤링 시작... (페이지: ${page})`);
-      console.log(`크롤링 URL: ${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`);
       
-      const url = `${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`;
+      // 실시간베스트 페이지 URL 구성
+      let url;
+      if (this.config.galleryId === 'dcbest') {
+        url = `${this.config.baseUrl}/board/lists/?id=dcbest&_dcbest=1&page=${page}`;
+      } else {
+        url = `${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`;
+      }
+      
+      console.log(`크롤링 URL: ${url}`);
       const response = await axios.get(url, {
         headers: { 'User-Agent': this.config.userAgent },
         timeout: this.config.timeout
@@ -34,6 +41,13 @@ class DCInsideCrawlerSimple {
 
       const $ = cheerio.load(response.data);
       const posts = [];
+      
+      // 디버깅: HTML 구조 확인
+      console.log('페이지 제목:', $('title').text());
+      console.log('.ub-content 개수:', $('.ub-content').length);
+      console.log('tr[data-type="post"] 개수:', $('tr[data-type="post"]').length);
+      console.log('.board-list tbody tr 개수:', $('.board-list tbody tr').length);
+      console.log('tr:has(.ub-word) 개수:', $('tr:has(.ub-word)').length);
       
       // 시간 기준 계산 (최근 N분) - 선택적 사용
       let timeThreshold = null;
@@ -45,8 +59,29 @@ class DCInsideCrawlerSimple {
         console.log('시간 필터 비활성화: 페이지 순서로 최신 게시글 판단');
       }
 
-      // 게시글 목록 파싱
-      $('.ub-content').each((index, element) => {
+      // 게시글 목록 파싱 - 실시간베스트 페이지 구조에 맞게 수정
+      // 여러 가능한 선택자를 시도 - 실시간베스트 페이지 구조에 맞게 수정
+      let postElements = $('.ub-content');
+      if (postElements.length === 0) {
+        postElements = $('tr[data-type="post"]');
+      }
+      if (postElements.length === 0) {
+        postElements = $('.board-list tbody tr');
+      }
+      if (postElements.length === 0) {
+        postElements = $('tr:has(.ub-word)');
+      }
+      if (postElements.length === 0) {
+        // 실시간베스트 페이지의 모든 게시글 행을 찾기
+        postElements = $('tr').filter(function() {
+          return $(this).find('.ub-word a').length > 0;
+        });
+      }
+      
+      console.log(`총 ${postElements.length}개의 게시글 요소 발견`);
+      console.log('사용된 선택자:', postElements.length > 0 ? '성공' : '실패');
+      
+      postElements.each((index, element) => {
         try {
           const $post = $(element);
           
@@ -54,10 +89,15 @@ class DCInsideCrawlerSimple {
           const postLink = $post.find('.ub-word a').attr('href');
           const postId = this.extractPostId(postLink);
           
-                     // 제목 추출 (댓글 수 제거)
-           let title = $post.find('.ub-word a').text().trim();
-                       // 댓글 수 [숫자] 또는 [숫자/숫자] 제거
-            title = title.replace(/\[\d+(?:\/\d+)?\]$/, '').trim();
+          // 제목 추출 (댓글 수 제거)
+          let title = $post.find('.ub-word a').text().trim();
+          const originalTitle = title; // 디버깅용
+          
+          // 댓글 수 제거 - 모든 [숫자] 패턴을 제거하되, 갤러리 태그는 보존
+          // 갤러리 태그는 보통 [갤명] 형태이므로, 숫자만 있는 [숫자] 패턴만 제거
+          title = title.replace(/\[\d+(?:\/\d+)?\]/g, '').trim();
+          
+          console.log(`게시글 ${index + 1}: ID=${postId}, 원본제목="${originalTitle}", 정리제목="${title}"`);
           
           // 작성자 추출
           const author = $post.find('.ub-writer').text().trim();
@@ -75,7 +115,8 @@ class DCInsideCrawlerSimple {
             return; // 이 게시글은 건너뛰기
           }
 
-          if (postId && title) {
+          if (postId && title && postId !== 'undefined' && title !== '') {
+            console.log(`게시글 추가: ${postId} - ${title}`);
             posts.push({
               postId,
               title,
@@ -85,6 +126,8 @@ class DCInsideCrawlerSimple {
               postUrl: `${this.config.baseUrl}${postLink}`,
               crawledAt: new Date()
             });
+          } else {
+            console.log(`게시글 제외: ID=${postId}, 제목="${title}"`);
           }
         } catch (error) {
           console.error('게시글 파싱 오류:', error);
