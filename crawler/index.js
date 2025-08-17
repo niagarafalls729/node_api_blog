@@ -136,8 +136,12 @@ router.post('/dcinside/best', async (req, res) => {
     const { galleryId = CRAWLER_CONFIG.GALLERY_ID, maxPages = CRAWLER_CONFIG.MAX_PAGES } = req.body;
     
     console.log(`디시인사이드 ${galleryId} 갤러리 크롤링 시작`);
+    console.log(`요청된 매개변수: galleryId=${galleryId}, maxPages=${maxPages}`);
     
-    const posts = await dcInsideCrawler.crawlGallery(galleryId, maxPages);
+    // galleryId 매개변수 제거 (크롤러 설정에서 가져옴)
+    const posts = await dcInsideCrawler.crawlGallery(maxPages);
+    
+    console.log(`크롤링 완료: ${posts.length}개 게시글`);
     
     res.json({
       success: true,
@@ -149,6 +153,7 @@ router.post('/dcinside/best', async (req, res) => {
       }
     });
   } catch (error) {
+    console.error('크롤링 에러:', error);
     res.status(500).json({
       error: '디시인사이드 크롤링 중 오류가 발생했습니다.',
       message: error.message

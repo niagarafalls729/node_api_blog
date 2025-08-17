@@ -1,10 +1,11 @@
 const axios = require('axios');
 const cheerio = require('cheerio');
-const { imageProcessor } = require('./imageProcessor');
+const puppeteer = require('puppeteer');
 const { crawlerDB, oracledb } = require('./database');
+const { imageProcessor } = require('./imageProcessor');
 const CRAWLER_CONFIG = require('../config');
 
-class DCInsideCrawlerSimple {
+class DCInsideCrawler {
   constructor() {
     this.config = {
       baseUrl: 'https://gall.dcinside.com',
@@ -13,406 +14,293 @@ class DCInsideCrawlerSimple {
       timeout: CRAWLER_CONFIG.TIMEOUT,
       delay: CRAWLER_CONFIG.DELAY,
       maxRetries: CRAWLER_CONFIG.MAX_RETRIES,
-      timeWindow: CRAWLER_CONFIG.TIME_WINDOW,
-      maxPages: CRAWLER_CONFIG.MAX_PAGES,
       checkDuplicate: CRAWLER_CONFIG.CHECK_DUPLICATE,
-      useTimeFilter: CRAWLER_CONFIG.USE_TIME_FILTER
+      maxPages: CRAWLER_CONFIG.MAX_PAGES
     };
+    this.browser = null;
+    this.page = null;
   }
 
-  // 실시간베스트 게시글 목록 크롤링 (시간 기준)
+  // Puppeteer 브라우저 초기화 및 로그인
+  async initBrowser() {
+    try {
+      console.log('🚀 Puppeteer 브라우저 시작...');
+      this.browser = await puppeteer.launch({ 
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      });
+      this.page = await this.browser.newPage();
+      
+      // 브라우저 설정
+      await this.page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36');
+      await this.page.setViewport({ width: 1920, height: 1080 });
+      
+      // 로그인 수행
+      console.log('🔐 디시인사이드 로그인 중...');
+      await this.page.goto('https://www.dcinside.com/member/login', { waitUntil: 'networkidle2' });
+      
+      // 로그인 정보 입력 (실제 계정 정보로 변경 필요)
+      await this.page.type('#user_id', 'your_username'); // 실제 아이디로 변경
+      await this.page.type('#user_pw', 'your_password'); // 실제 비밀번호로 변경
+      await this.page.click('#loginAction');
+      await this.page.waitForNavigation({ waitUntil: 'networkidle2' });
+      
+      console.log('✅ 로그인 완료');
+      return true;
+    } catch (error) {
+      console.error('❌ 브라우저 초기화 실패:', error.message);
+      return false;
+    }
+  }
+
+  // 리스트 페이지 크롤링 (Puppeteer 사용)
   async crawlBestPosts(page = 1) {
     try {
-      console.log(`실시간베스트 크롤링 시작... (페이지: ${page})`);
-      
-      // 실시간베스트 페이지 URL 구성
-      let url;
-      if (this.config.galleryId === 'dcbest') {
-        url = `${this.config.baseUrl}/board/lists/?id=dcbest&_dcbest=1&page=${page}`;
-      } else {
-        url = `${this.config.baseUrl}/board/lists/?id=${this.config.galleryId}&page=${page}`;
+      if (!this.page) {
+        console.log('⚠️ 브라우저가 초기화되지 않았습니다. axios로 대체합니다.');
+        return await this.crawlBestPostsWithAxios(page);
       }
-      
-      console.log(`크롤링 URL: ${url}`);
-      const response = await axios.get(url, {
-        headers: { 'User-Agent': this.config.userAgent },
-        timeout: this.config.timeout
-      });
 
-      const $ = cheerio.load(response.data);
+      const url = `${this.config.baseUrl}/board/lists?id=${this.config.galleryId}&page=${page}&_dcbest=6`;
+      console.log(`📄 페이지 ${page} 크롤링 중: ${url}`);
+      
+      await this.page.goto(url, { waitUntil: 'networkidle2' });
+      const html = await this.page.content();
+      
+      const $ = cheerio.load(html);
       const posts = [];
-      
-      // 디버깅: HTML 구조 확인
-      console.log('페이지 제목:', $('title').text());
-      console.log('.ub-content 개수:', $('.ub-content').length);
-      console.log('tr[data-type="post"] 개수:', $('tr[data-type="post"]').length);
-      console.log('.board-list tbody tr 개수:', $('.board-list tbody tr').length);
-      console.log('tr:has(.ub-word) 개수:', $('tr:has(.ub-word)').length);
-      
-      // 시간 기준 계산 (최근 N분) - 선택적 사용
-      let timeThreshold = null;
-      if (this.config.useTimeFilter) {
-        timeThreshold = new Date();
-        timeThreshold.setMinutes(timeThreshold.getMinutes() - this.config.timeWindow);
-        console.log(`시간 기준: ${timeThreshold.toLocaleString('ko-KR')} 이후 게시글만 수집`);
-      } else {
-        console.log('시간 필터 비활성화: 페이지 순서로 최신 게시글 판단');
-      }
 
-      // 게시글 목록 파싱 - 실시간베스트 페이지 구조에 맞게 수정
-      // 여러 가능한 선택자를 시도 - 실시간베스트 페이지 구조에 맞게 수정
-      let postElements = $('.ub-content');
-      if (postElements.length === 0) {
-        postElements = $('tr[data-type="post"]');
-      }
-      if (postElements.length === 0) {
-        postElements = $('.board-list tbody tr');
-      }
-      if (postElements.length === 0) {
-        postElements = $('tr:has(.ub-word)');
-      }
-      if (postElements.length === 0) {
-        // 실시간베스트 페이지의 모든 게시글 행을 찾기
-        postElements = $('tr').filter(function() {
-          return $(this).find('.ub-word a').length > 0;
-        });
-      }
+      console.log('🔍 게시글 파싱 중...');
+      $('tr.ub-content').each((i, el) => {
+        const $el = $(el);
+        if ($el.hasClass('icon_notice')) return;
       
-      console.log(`총 ${postElements.length}개의 게시글 요소 발견`);
-      console.log('사용된 선택자:', postElements.length > 0 ? '성공' : '실패');
+        const id = $el.attr('data-no');
+        if (!id) return;
       
-      postElements.each((index, element) => {
-        try {
-          const $post = $(element);
-          
-          // 게시글 ID 추출
-          const postLink = $post.find('.ub-word a').attr('href');
-          const postId = this.extractPostId(postLink);
-          
-          // 제목 추출 (댓글 수 제거)
-          let title = $post.find('.ub-word a').text().trim();
-          const originalTitle = title; // 디버깅용
-          
-          // 댓글 수 제거 - 모든 [숫자] 패턴을 제거하되, 갤러리 태그는 보존
-          // 갤러리 태그는 보통 [갤명] 형태이므로, 숫자만 있는 [숫자] 패턴만 제거
-          title = title.replace(/\[\d+(?:\/\d+)?\]/g, '').trim();
-          
-          console.log(`게시글 ${index + 1}: ID=${postId}, 원본제목="${originalTitle}", 정리제목="${title}"`);
-          
-          // 작성자 추출
-          const author = $post.find('.ub-writer').text().trim();
-          
-          // 조회수만 추출 (추천수 제거)
-          const viewCount = this.extractNumber($post.find('.ub-view').text());
-          
-          // 작성일 추출
-          const dateText = $post.find('.ub-date').text().trim();
-          const postDate = this.parseDate(dateText);
-
-          // 시간 기준 필터링 (선택적)
-          if (this.config.useTimeFilter && timeThreshold && dateText && dateText.trim() && postDate < timeThreshold) {
-            console.log(`시간 기준 제외: ${title} (${postDate.toLocaleString('ko-KR')})`);
-            return; // 이 게시글은 건너뛰기
-          }
-
-          if (postId && title && postId !== 'undefined' && title !== '') {
-            console.log(`게시글 추가: ${postId} - ${title}`);
-            posts.push({
-              postId,
-              title,
-              author,
-              viewCount,
-              postDate,
-              postUrl: `${this.config.baseUrl}${postLink}`,
-              crawledAt: new Date()
-            });
-          } else {
-            console.log(`게시글 제외: ID=${postId}, 제목="${title}"`);
-          }
-        } catch (error) {
-          console.error('게시글 파싱 오류:', error);
+        // 제목 추출
+        const titleEl = $el.find('td.gall_tit a').first();
+        titleEl.find('em').remove(); // 댓글 수 제거
+        let title = titleEl.text().trim();
+      
+        if (!title) {
+          const thumbAlt = $el.find('td.gall_tit img').attr('alt');
+          title = thumbAlt ? `[이미지] ${thumbAlt}` : '[제목없음]';
+        }
+      
+        const writer = $el.find('td.gall_writer span.nickname em').text().trim();
+        const dateStr = $el.find('td.gall_date').attr('title') || $el.find('td.gall_date').text().trim();
+        const date = this.parseDate(dateStr);
+        const views = this.extractNumber($el.find('td.gall_count').text());
+        const recommends = this.extractNumber($el.find('td.gall_recommend').text());
+      
+        const post = {
+          postId: id,
+          title,
+          author: writer || '[익명]',
+          postUrl: `${this.config.baseUrl}/board/view/?id=${this.config.galleryId}&no=${id}`,
+          postDate: date,
+          viewCount: views,
+          recommendCount: recommends
+        };
+        
+        posts.push(post);
+        console.log(`[${i+1}] ${id} - "${title}" (${writer})`);
+        
+        // 성인인증 게시글 확인
+        if (title.includes('[ㅇㅎ]') || title.includes('[성인]')) {
+          console.log(`🎯 성인인증 게시글 발견: ${title}`);
         }
       });
-
-      console.log(`${posts.length}개의 게시글을 크롤링했습니다.`);
+      
+      console.log(`✅ 페이지 ${page} 완료: ${posts.length}개 게시글`);
       return posts;
+      
     } catch (error) {
-      console.error('실시간베스트 크롤링 실패:', error);
-      throw error;
+      console.error(`❌ 페이지 ${page} 크롤링 실패:`, error.message);
+      return [];
     }
   }
 
-  // 개별 게시글 상세 내용 크롤링
+  // 기존 axios 방식 (백업용)
+  async crawlBestPostsWithAxios(page = 1) {
+    const url = `${this.config.baseUrl}/board/lists?id=${this.config.galleryId}&page=${page}&_dcbest=6`;
+    console.log("url",url)  
+    const res = await axios.get(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+        'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6,zh;q=0.5',
+        'Accept-Encoding': 'gzip, deflate, br, zstd',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Cache-Control': 'max-age=0',
+        'Referer': 'https://gall.dcinside.com/board/lists?id=dcbest',
+        'sec-ch-ua': '"Not;A=Brand";v="99", "Google Chrome";v="139", "Chromium";v="139"',
+        'sec-ch-ua-mobile': '?0',
+        'sec-ch-ua-platform': '"Windows"'
+      },
+      timeout: this.config.timeout,
+    });
+
+    const $ = cheerio.load(res.data);
+    const posts = [];
+
+    $('tr.ub-content').each((i, el) => {
+      const $el = $(el);
+      if ($el.hasClass('icon_notice')) return;
+    
+      const id = $el.attr('data-no');
+      if (!id) return;
+    
+      // 제목 추출
+      const titleEl = $el.find('td.gall_tit a').first();
+      titleEl.find('em').remove(); // 댓글 수 제거
+      let title = titleEl.text().trim();
+    
+      if (!title) {
+        const thumbAlt = $el.find('td.gall_tit img').attr('alt');
+        title = thumbAlt ? `[이미지] ${thumbAlt}` : '[제목없음]';
+      }
+    
+      const writer = $el.find('td.gall_writer span.nickname em').text().trim();
+      const dateStr = $el.find('td.gall_date').attr('title') || $el.find('td.gall_date').text().trim();
+      const date = this.parseDate(dateStr);
+      const views = this.extractNumber($el.find('td.gall_count').text());
+      const recommends = this.extractNumber($el.find('td.gall_recommend').text());
+    
+      const post = {
+        postId: id,
+        title,
+        author: writer || '[익명]',
+        postUrl: `${this.config.baseUrl}/board/view/?id=${this.config.galleryId}&no=${id}`,
+        postDate: date,
+        viewCount: views,
+        recommendCount: recommends
+      };
+      
+      posts.push(post);
+      console.log(`[${i+1}] ${id} - "${title}" (${writer})`);
+      
+      // 성인인증 게시글 확인
+      if (title.includes('[ㅇㅎ]') || title.includes('[성인]')) {
+        console.log(`🎯 성인인증 게시글 발견: ${title}`);
+      }
+    });
+    
+    return posts;
+  }
+
+  // 상세 페이지 크롤링
   async crawlPostDetail(postId) {
     try {
-      console.log(`게시글 상세 크롤링: ${postId}`);
-      
       const url = `${this.config.baseUrl}/board/view/?id=${this.config.galleryId}&no=${postId}`;
-      const response = await axios.get(url, {
+      const res = await axios.get(url, {
         headers: { 'User-Agent': this.config.userAgent },
         timeout: this.config.timeout
       });
+      const $ = cheerio.load(res.data);
 
-      const $ = cheerio.load(response.data);
-      
-      // 게시글 내용 추출
-      const content = $('.write_div').html();
-      console.log(`게시글 내용 길이: ${content ? content.length : 0}`);
-      console.log(`게시글 내용 미리보기: ${content ? content.substring(0, 200) : 'null'}`);
-      
-      // 이미지 URL 추출
+      const content = $('.write_div').html() || '';
       const imageUrls = [];
-      $('.write_div img').each((index, element) => {
-        const src = $(element).attr('src');
-        if (src && this.isValidImageUrl(src)) {
-          const normalizedUrl = this.normalizeImageUrl(src);
-          imageUrls.push(normalizedUrl);
-        }
+
+      $('.write_div img').each((i, img) => {
+        const src = $(img).attr('src');
+        if (this.isValidImageUrl(src)) imageUrls.push(this.normalizeImageUrl(src));
       });
 
-      return {
-        postId,
-        content,
-        imageUrls,
-        crawledAt: new Date()
-      };
-    } catch (error) {
-      console.error('게시글 상세 크롤링 실패:', error);
-      throw error;
+      return { postId, content, imageUrls, crawledAt: new Date() };
+    } catch (err) {
+      console.error(`게시글 상세 크롤링 실패 (${postId}):`, err.message);
+      return { postId, content: '', imageUrls: [], crawledAt: new Date() };
     }
   }
 
-  // 이미지 URL 정규화
   normalizeImageUrl(url) {
-    if (url.startsWith('//')) {
-      return `https:${url}`;
-    } else if (url.startsWith('/')) {
-      return `${this.config.baseUrl}${url}`;
-    }
+    if (!url) return '';
+    if (url.startsWith('//')) return `https:${url}`;
+    if (url.startsWith('/')) return `${this.config.baseUrl}${url}`;
     return url;
   }
 
-  // 이미지 URL 유효성 검사
   isValidImageUrl(url) {
     if (!url) return false;
-    
-    // 로딩 이미지 제외
-    if (url.includes('loading') || url.includes('gallview_loading')) {
-      return false;
-    }
-    
-    // 디시인사이드 이미지 URL 체크
-    if (url.includes('dcimg') || url.includes('dcinside.co.kr') || url.includes('image.dcinside.com')) {
-      return true;
-    }
-    
-    // 일반 이미지 확장자 체크
-    const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-    return imageExtensions.some(ext => url.toLowerCase().includes(ext));
+    const invalid = ['loading', 'gallview_loading'];
+    if (invalid.some(i => url.includes(i))) return false;
+    return /\.(jpg|jpeg|png|gif|webp)$/i.test(url);
   }
 
-  // 이미지 처리 및 로컬 저장
-  async processAndReplaceImage(imageUrl, postId, index) {
-    try {
-      console.log(`이미지 처리 중: ${imageUrl}`);
-      
-      // 이미지 다운로드 및 로컬 저장
-      const imageInfo = await imageProcessor.processImageHybrid(imageUrl, postId, false);
-      
-      if (imageInfo.processed && imageInfo.localPath) {
-        console.log(`이미지 로컬 저장 완료: ${imageInfo.fileName}`);
-        return imageInfo;
-      } else {
-        console.log(`이미지 로컬 저장 실패: ${imageUrl}`);
-        return null;
-      }
-    } catch (error) {
-      console.error(`이미지 처리 실패 (${imageUrl}):`, error);
-      return null;
-    }
-  }
-
-  // HTML 내용에서 이미지 처리
   async processImagesInContent(content, postId) {
-    try {
-      if (!content) return content;
-      
-      const $ = cheerio.load(content);
-      let processedContent = content;
-      
-      // 모든 이미지 태그 찾기
-      const imgElements = $('img');
-      console.log(`이미지 태그 ${imgElements.length}개 발견`);
-      
-      for (let i = 0; i < imgElements.length; i++) {
-        const img = $(imgElements[i]);
-        const src = img.attr('src');
-        
-        if (src && this.isValidImageUrl(src)) {
-          const normalizedUrl = this.normalizeImageUrl(src);
-          console.log(`이미지 처리 중 (${i + 1}/${imgElements.length}): ${normalizedUrl}`);
-          
-          try {
-            // 이미지 다운로드 및 로컬 저장
-            const imageInfo = await imageProcessor.processImageHybrid(normalizedUrl, postId, false);
-            
-                         if (imageInfo && imageInfo.processed && imageInfo.localPath) {
-               // HTML에서 이미지 경로 교체
-               const originalImgTag = img.prop('outerHTML');
-               const newImgTag = `<img src="/crawled_images/${imageInfo.fileName}" alt="크롤링된 이미지" />`;
-               processedContent = processedContent.replace(originalImgTag, newImgTag);
-               
-               console.log(`✅ 이미지 경로 교체 완료: ${imageInfo.fileName}`);
-             } else {
-               console.log(`❌ 이미지 로컬 저장 실패: ${normalizedUrl}`);
-               // 로컬 저장 실패 시 원본 URL 유지 (이미지가 보이도록)
-               console.log(`원본 URL 유지: ${normalizedUrl}`);
-             }
-          } catch (error) {
-            console.error(`이미지 처리 실패 (${normalizedUrl}):`, error.message);
-          }
-        } else {
-          console.log(`유효하지 않은 이미지 URL 건너뛰기: ${src}`);
+    if (!content) return content;
+    const $ = cheerio.load(content);
+    let processedContent = content;
+
+    for (const img of $('img').toArray()) {
+      const src = $(img).attr('src');
+      if (!src || !this.isValidImageUrl(src)) continue;
+      const normalizedUrl = this.normalizeImageUrl(src);
+
+      try {
+        const imageInfo = await imageProcessor.processImageHybrid(normalizedUrl, postId, false);
+        if (imageInfo?.processed && imageInfo.localPath) {
+          const originalTag = $.html(img);
+          const newTag = `<img src="/crawled_images/${imageInfo.fileName}" alt="크롤링된 이미지" />`;
+          processedContent = processedContent.replace(originalTag, newTag);
         }
+      } catch (err) {
+        console.error(`이미지 처리 실패 (${normalizedUrl}):`, err.message);
       }
-      
-      return processedContent;
-    } catch (error) {
-      console.error('이미지 처리 중 오류:', error);
-      return content; // 오류 시 원본 내용 반환
     }
+    return processedContent;
   }
 
-  // 게시글 ID 추출
-  extractPostId(url) {
-    if (!url) return null;
-    const match = url.match(/no=(\d+)/);
-    return match ? match[1] : null;
-  }
-
-  // 숫자 추출
   extractNumber(text) {
     if (!text) return 0;
     const match = text.match(/\d+/);
-    return match ? parseInt(match[0]) : 0;
+    return match ? parseInt(match[0], 10) : 0;
   }
 
-  // 날짜 파싱
   parseDate(dateText) {
     if (!dateText) return new Date();
-    
-    try {
-      console.log(`날짜 파싱: "${dateText}"`);
-      
-      // "2024-01-15" 형식
-      if (dateText.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return new Date(dateText);
-      }
-      
-      // "01-15" 형식 (올해)
-      if (dateText.match(/^\d{2}-\d{2}$/)) {
-        const year = new Date().getFullYear();
-        return new Date(`${year}-${dateText}`);
-      }
-      
-      // "12:34" 형식 (오늘)
-      if (dateText.match(/^\d{2}:\d{2}$/)) {
-        const today = new Date();
-        const [hours, minutes] = dateText.split(':');
-        today.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-        return today;
-      }
-      
-      // 시간 정보가 없는 경우 현재 시간으로 설정
-      console.log(`시간 정보 없음, 현재 시간으로 설정: ${dateText}`);
-      return new Date();
-    } catch (error) {
-      console.error('날짜 파싱 오류:', error);
-      return new Date();
+    if (/^\d{4}-\d{2}-\d{2}/.test(dateText)) return new Date(dateText);
+    if (/^\d{2}-\d{2}$/.test(dateText)) {
+      const year = new Date().getFullYear();
+      return new Date(`${year}-${dateText}`);
     }
+    if (/^\d{2}:\d{2}$/.test(dateText)) {
+      const today = new Date();
+      const [h, m] = dateText.split(':').map(Number);
+      today.setHours(h, m, 0, 0);
+      return today;
+    }
+    return new Date();
   }
 
-  // 데이터베이스에 저장
-  async saveToDatabase(posts) {
-    try {
-      console.log('데이터베이스 저장 시작...');
-      
-      let savedCount = 0;
-      let skippedCount = 0;
-      
-      for (const post of posts) {
-        try {
-          // 중복 체크
-          if (this.config.checkDuplicate) {
-            const isDuplicate = await this.checkDuplicate(post.postId);
-            if (isDuplicate) {
-              console.log(`중복 게시글 건너뛰기: ${post.title} (ID: ${post.postId})`);
-              skippedCount++;
-              continue;
-            }
-          }
-          
-          // 상세 내용 크롤링
-          const detail = await this.crawlPostDetail(post.postId);
-          
-          // 이미지 처리 및 HTML 수정
-          const processedContent = await this.processImagesInContent(detail.content, post.postId);
-          
-          // 게시글과 내용을 한 번에 저장
-          await this.savePostWithContent(post, processedContent);
-          
-          savedCount++;
-          console.log(`새 게시글 저장 완료: ${post.title}`);
-          
-        } catch (error) {
-          console.error(`게시글 저장 실패 (${post.postId}):`, error);
-        }
-        
-        // 요청 간격 조절
-        await this.delay(this.config.delay);
-      }
-      
-      console.log(`저장 완료: ${savedCount}개 새 게시글, ${skippedCount}개 중복 건너뛰기`);
-    } catch (error) {
-      console.error('데이터베이스 저장 실패:', error);
-      throw error;
-    }
-  }
-
-  // 중복 체크
   async checkDuplicate(postId) {
     try {
-      if (!crawlerDB.connection) {
-        await crawlerDB.connect();
-      }
-
-      const checkQuery = `
-        SELECT COUNT(*) as count FROM DC_BEST_POSTS WHERE POST_ID = :postId
-      `;
-      
-      const checkResult = await crawlerDB.connection.execute(checkQuery, {
-        postId: postId
-      });
-      
-      return checkResult.rows[0][0] > 0;
-    } catch (error) {
-      console.error('중복 체크 실패:', error);
+      if (!crawlerDB.connection) await crawlerDB.connect();
+      const query = `SELECT COUNT(*) as count FROM DC_BEST_POSTS WHERE POST_ID = :postId`;
+      const result = await crawlerDB.connection.execute(query, { postId });
+      return result.rows[0][0] > 0;
+    } catch (err) {
+      console.error('중복 체크 실패:', err.message);
       return false;
     }
   }
 
-  // 게시글과 내용을 한 번에 저장
   async savePostWithContent(post, content) {
     try {
-      if (!crawlerDB.connection) {
-        await crawlerDB.connect();
-      }
-
+      if (!crawlerDB.connection) await crawlerDB.connect();
       const query = `
-        INSERT INTO DC_BEST_POSTS (POST_ID, TITLE, AUTHOR, CONTENT, POST_URL, POST_DATE, VIEW_COUNT, CRAWLED_AT)
-        VALUES (:postId, :title, :author, :content, :postUrl, :postDate, :viewCount, :crawledAt)
+        INSERT INTO DC_BEST_POSTS
+        (POST_ID, TITLE, AUTHOR, CONTENT, POST_URL, POST_DATE, VIEW_COUNT, CRAWLED_AT)
+        VALUES
+        (:postId, :title, :author, :content, :postUrl, :postDate, :viewCount, :crawledAt)
       `;
-      
       await crawlerDB.connection.execute(query, {
         postId: post.postId,
         title: post.title,
@@ -421,135 +309,62 @@ class DCInsideCrawlerSimple {
         postUrl: post.postUrl,
         postDate: post.postDate,
         viewCount: post.viewCount,
-        crawledAt: post.crawledAt
+        crawledAt: new Date()
       });
-      
       await crawlerDB.connection.commit();
-    } catch (error) {
-      console.error('게시글 저장 실패:', error);
-      throw error;
+    } catch (err) {
+      console.error(`게시글 저장 실패 (${post.postId}):`, err.message);
     }
   }
 
-
-
-
-
-  // 지연 함수
-  delay(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+  async saveToDatabase(posts) {
+    for (const post of posts) {
+      try {
+        if (this.config.checkDuplicate && await this.checkDuplicate(post.postId)) {
+          console.log(`중복 건너뛰기: ${post.postId}`);
+          continue;
+        }
+        const detail = await this.crawlPostDetail(post.postId);
+        const content = await this.processImagesInContent(detail.content, post.postId);
+        await this.savePostWithContent(post, content);
+        await this.delay(this.config.delay);
+      } catch (err) {
+        console.error(`게시글 처리 실패 (${post.postId}):`, err.message);
+      }
+    }
   }
 
-  // crawlGallery 메서드 추가 (index.js 호환성)
-  async crawlGallery(galleryId = CRAWLER_CONFIG.GALLERY_ID, maxPages = CRAWLER_CONFIG.MAX_PAGES) {
+  delay(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
+
+  async crawlGallery(maxPages = this.config.maxPages) {
+    let allPosts = [];
     try {
-      console.log(`디시인사이드 ${galleryId} 갤러리 크롤링 시작 (최대 ${maxPages}페이지)`);
-      
-      // 설정 업데이트
-      this.config.galleryId = galleryId;
-      this.config.maxPages = maxPages;
-      
-      let allPosts = [];
+      // 브라우저 초기화 시도
+      const browserInitialized = await this.initBrowser();
       
       for (let page = 1; page <= maxPages; page++) {
-        console.log(`\n--- ${page}페이지 크롤링 중 ---`);
-        
-        // 게시글 목록 크롤링
+        console.log(`\n--- ${page}페이지 크롤링 ---`);
         const posts = await this.crawlBestPosts(page);
-        
-        if (posts.length === 0) {
-          console.log('더 이상 게시글이 없습니다.');
-          break;
-        }
-        
-        // 각 게시글의 상세 내용 크롤링
-        for (const post of posts) {
-          try {
-            console.log(`게시글 상세 크롤링: ${post.postId}`);
-            
-            // 중복 체크
-            if (this.config.checkDuplicate && await this.checkDuplicate(post.postId)) {
-              console.log(`중복 게시글 건너뛰기: ${post.postId}`);
-              continue;
-            }
-            
-                         // 게시글 상세 내용 크롤링
-             const content = await this.crawlPostDetail(post.postId);
-             
-             // 이미지 처리
-             const processedContent = await this.processImagesInContent(content.content, post.postId);
-             
-             // 데이터베이스에 저장
-             await this.savePostWithContent(post, processedContent);
-            
-            console.log(`게시글 저장 완료: ${post.postId}`);
-            
-            // 요청 간격 대기
-            await this.delay(this.config.delay);
-            
-          } catch (error) {
-            console.error(`게시글 ${post.postId} 처리 실패:`, error);
-          }
-        }
-        
-        allPosts = allPosts.concat(posts);
-        console.log(`${page}페이지 완료! (${posts.length}개 게시글)`);
-      }
-      
-      console.log(`\n=== ${galleryId} 갤러리 크롤링 완료 (총 ${allPosts.length}개 게시글) ===`);
-      return allPosts;
-      
-    } catch (error) {
-      console.error('크롤링 실패:', error);
-      throw error;
-    } finally {
-      // 데이터베이스 연결 종료
-      if (crawlerDB.connection) {
-        await crawlerDB.close();
-        console.log('데이터베이스 연결 종료');
-      }
-    }
-  }
-
-  // 메인 크롤링 함수 (페이지 기준)
-  async crawl() {
-    try {
-      console.log('=== 디시인사이드 실시간베스트 크롤링 시작 ===');
-      console.log(`크롤링 기준: 최대 ${this.config.maxPages}페이지 (실시간베스트 최신 게시글)`);
-      
-      let totalSaved = 0;
-      let totalSkipped = 0;
-      
-      for (let page = 1; page <= this.config.maxPages; page++) {
-        console.log(`\n--- ${page}페이지 크롤링 중 ---`);
-        
-        // 게시글 목록 크롤링
-        const posts = await this.crawlBestPosts(page);
-        
-        if (posts.length === 0) {
-          console.log('더 이상 게시글이 없습니다.');
-          break;
-        }
-        
-        // 데이터베이스에 저장
+        if (!posts.length) break;
         await this.saveToDatabase(posts);
-        
-        console.log(`${page}페이지 완료! (${posts.length}개 게시글)`);
+        allPosts = allPosts.concat(posts);
       }
-      
-      console.log('\n=== 크롤링 완료 ===');
-    } catch (error) {
-      console.error('크롤링 실패:', error);
-      throw error;
+    } catch (err) {
+      console.error('크롤링 실패:', err.message);
     } finally {
-      // 데이터베이스 연결 종료
-      if (crawlerDB.connection) {
-        await crawlerDB.close();
-        console.log('데이터베이스 연결 종료');
+      if (this.browser) {
+        await this.browser.close();
+        console.log('🔌 브라우저 종료');
       }
+      if (crawlerDB.connection) await crawlerDB.close();
+      console.log('데이터베이스 연결 종료');
     }
+    console.log(`총 ${allPosts.length}개 게시글 크롤링 완료`);
+    return allPosts;
   }
 }
 
-const dcInsideCrawler = new DCInsideCrawlerSimple();
-module.exports = { DCInsideCrawlerSimple, dcInsideCrawler };
+const dcInsideCrawler = new DCInsideCrawler();
+module.exports = { DCInsideCrawler, dcInsideCrawler };
