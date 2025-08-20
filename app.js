@@ -37,7 +37,10 @@ const keys = require("./apiKey/keys");
 const CRAWLER_CONFIG = require("./config");
 
 const { upload } = require("./multer/index");
-const { router: crawlerRouter, setupScheduledCrawling } = require("./crawler/index");
+const {
+  router: crawlerRouter,
+  setupScheduledCrawling,
+} = require("./crawler/index");
 
 const cors = require("cors");
 
@@ -68,12 +71,15 @@ cron.schedule("*/10 * * * *", async () => {
   console.log("매일 10분마다 디시인사이드 크롤링 실행");
   try {
     // 실시간베스트 크롤링 (1페이지)
-    const axios = require('axios');
-    const response = await axios.post('http://localhost:4000/crawler/dcinside/best', {
-      galleryId: CRAWLER_CONFIG.GALLERY_ID,
-      maxPages: CRAWLER_CONFIG.MAX_PAGES
-    });
-    console.log('크롤링 완료:', response.data);
+    const axios = require("axios");
+    const response = await axios.post(
+      "http://localhost:4000/crawler/dcinside/best",
+      {
+        galleryId: CRAWLER_CONFIG.GALLERY_ID,
+        maxPages: CRAWLER_CONFIG.MAX_PAGES,
+      }
+    );
+    console.log("크롤링 완료:", response.data);
   } catch (err) {
     console.error("크롤링 실패:", err);
   }
@@ -298,9 +304,6 @@ app.post("/img", upload.single("img"), (req, res) => {
 /////////////////////////////////////////////////////////////////////////////
 app.post("/weather", async (req, res) => {
   console.log("weather");
-  if (req.body.key == null) {
-    return res.send("Internal Server Error");
-  }
   try {
     let ip =
       req.headers["x-forwarded-for"] ||
