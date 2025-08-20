@@ -324,36 +324,23 @@ app.post("/weather", async (req, res) => {
     const responseIP = await axios.get(`http://ip-api.com/json/${ip}`);
     const data = responseIP.data;
 
-    // 가져온 위경도로 날씨 조회 (실패해도 빈 배열로 대체)
-    let weatherArray = [];
-    try {
-      const apikey = keys.weatherKey;
-      console.log("aa", apikey);
-      const lang = "kr";
-      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${data.lat}&lon=${data.lon}&lang=${lang}&appid=${apikey}`;
-      const responseWeather = await axios.get(url);
-      weatherArray = responseWeather.data?.weather || [];
-    } catch (wErr) {
-      console.error(
-        "weather fetch error:",
-        wErr?.response?.status || wErr?.message || wErr
-      );
-    }
+    //가져온 위경도로 날씨 조회
+    const apikey = keys.weatherKey;
+    console.log("aa", apikey);
+    const lang = "kr";
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${data.lat}&lon=${data.lon}&lang=${lang}&appid=${apikey}`;
+    const responseWeather = await axios.get(url);
 
-    //방문자 체크용 DB (항상 시도)
-    let responseDB = { code: "0000", message: "등록 성공" };
-    try {
-      const insertV = { ip: ip, city: data.city };
-      const connection = await baseDbConnection();
-      responseDB = await visitLog(connection, insertV);
-      await connection.close();
-    } catch (dbErr) {
-      console.error("visitLog DB error:", dbErr?.message || dbErr);
-    }
+    //방문자 체크용 DB
+    // 디비 연결!
+    const insertV = { ip: ip, city: data.city };
+    const connection = await baseDbConnection();
+    const responseDB = await visitLog(connection, insertV);
+    await connection.close();
 
     res.json({
       city: data.city,
-      weather: weatherArray,
+      weather: responseWeather.data.weather,
       rtn: responseDB,
     });
 
