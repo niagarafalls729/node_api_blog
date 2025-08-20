@@ -314,27 +314,40 @@ app.post("/weather", async (req, res) => {
       ip = "210.89.164.90"; // 테스트를 위한 공용 IP
     }
 
-    //ip로 주소 가져오기
+    //ip로 주소 가져오기 (도시 정보는 방문 로그에 사용)
     const responseIP = await axios.get(`http://ip-api.com/json/${ip}`);
     const data = responseIP.data;
 
-    //가져온 위경도로 날씨 조회
-    const apikey = keys.weatherKey;
-    console.log("aa", apikey);
-    const lang = "kr";
-    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${data.lat}&lon=${data.lon}&lang=${lang}&appid=${apikey}`;
-    const responseWeather = await axios.get(url);
+    // 방문자 체크용 DB (날씨 API 성공 여부와 무관하게 기록)
+    let responseDB = { code: "0000", message: "등록 성공" };
+    try {
+      const insertV = { ip: ip, city: data.city };
+      const connection = await baseDbConnection();
+      responseDB = await visitLog(connection, insertV);
+      await connection.close();
+    } catch (dbErr) {
+      console.error("visitLog DB error:", dbErr);
+    }
 
-    //방문자 체크용 DB
-    // 디비 연결!
-    const insertV = { ip: ip, city: data.city };
-    const connection = await baseDbConnection();
-    const responseDB = await visitLog(connection, insertV);
-    await connection.close();
+    // 가져온 위경도로 날씨 조회 (실패해도 응답은 정상 반환)
+    let weatherArray = [];
+    try {
+      const apikey = keys.weatherKey;
+      console.log("aa", apikey);
+      const lang = "kr";
+      const url = `https://api.openweathermap.org/data/2.5/weather?lat=${data.lat}&lon=${data.lon}&lang=${lang}&appid=${apikey}`;
+      const responseWeather = await axios.get(url);
+      weatherArray = responseWeather.data.weather || [];
+    } catch (wErr) {
+      console.error(
+        "weather fetch error:",
+        wErr?.response?.status || wErr?.message || wErr
+      );
+    }
 
     res.json({
       city: data.city,
-      weather: responseWeather.data.weather,
+      weather: weatherArray,
       rtn: responseDB,
     });
 
