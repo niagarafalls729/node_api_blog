@@ -35,6 +35,7 @@ const { getDCBestPosts, getDCBestPostDetail } = require("./controller/dcbest");
 const { baseDbConnection } = require("./dbConnection/baseDbConnection");
 const keys = require("./apiKey/keys");
 const CRAWLER_CONFIG = require("./config");
+const { crawlerDB } = require("./crawler/database");
 
 const { upload } = require("./multer/index");
 const {
@@ -82,6 +83,17 @@ cron.schedule("*/10 * * * *", async () => {
     console.log("크롤링 완료:", response.data);
   } catch (err) {
     console.error("크롤링 실패:", err);
+  }
+});
+
+// 매일 새벽 3시에 오래된 크롤링 데이터 삭제 (60일 이상)
+cron.schedule("0 12 * * *", async () => {
+  console.log("오래된 크롤링 데이터 삭제 작업 시작");
+  try {
+    const result = await crawlerDB.cleanupOldCrawlerData(60); // 60일 이상 된 데이터 삭제
+    console.log("크롤링 데이터 삭제 완료:", result);
+  } catch (err) {
+    console.error("크롤링 데이터 삭제 실패:", err);
   }
 });
 
