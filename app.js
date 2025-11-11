@@ -3,6 +3,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
 const axios = require("axios");
+const fs = require("fs");
 const app = express();
 const cron = require("node-cron");
 
@@ -69,7 +70,7 @@ cron.schedule("0 9 * * *", async () => {
 
 // 매일 10분마다 디시인사이드 크롤링 실행
 cron.schedule("*/10 * * * *", async () => {
-  console.log("매일 10분마다 디시인사이드 크롤링 실행");
+  console.log("매일 10분마다 디시인사이드 크롤링 실행");  
   try {
     // 실시간베스트 크롤링 (1페이지)
     const axios = require("axios");
@@ -86,16 +87,38 @@ cron.schedule("*/10 * * * *", async () => {
   }
 });
 
-// 매일 새벽 3시에 오래된 크롤링 데이터 삭제 (60일 이상)
-cron.schedule("0 12 * * *", async () => {
-  console.log("오래된 크롤링 데이터 삭제 작업 시작");
+// 매일 오전 9시 30분(Asia/Seoul) 기준으로 오래된 크롤링 데이터 삭제 (60일 이상)
+const cleanupLogDir = path.join(__dirname, "logs");
+const cleanupLogPath = path.join(cleanupLogDir, "crawler_cleanup.log");
+
+const appendCleanupLog = (message) => {
+  const timestamp = new Date().toISOString();
   try {
-    const result = await crawlerDB.cleanupOldCrawlerData(60); // 60일 이상 된 데이터 삭제
-    console.log("크롤링 데이터 삭제 완료:", result);
-  } catch (err) {
-    console.error("크롤링 데이터 삭제 실패:", err);
+    if (!fs.existsSync(cleanupLogDir)) {
+      fs.mkdirSync(cleanupLogDir, { recursive: true });
+    }
+    fs.appendFileSync(cleanupLogPath, `[${timestamp}] ${message}\n`);
+  } catch (logErr) {
+    console.error("오래된 데이터 정리 로그 작성 실패:", logErr);
   }
-});
+};
+
+cron.schedule(
+  "30 9 * * *",
+  async () => { 
+    console.log("오래된 크롤링 데이터 삭제 작업 시작");
+    appendCleanupLog("정리 작업 시작");
+    try {
+      const result = await crawlerDB.cleanupOldCrawlerData(60); // 60일 이상 된 데이터 삭제
+      console.log("크롤링 데이터 삭제 완료:", result);
+      appendCleanupLog(`정리 완료: ${JSON.stringify(result)}`);
+    } catch (err) {
+      console.error("크롤링 데이터 삭제 실패:", err);
+      appendCleanupLog(`정리 실패: ${err?.message || err}`);
+    }
+  },
+  { timezone: "Asia/Seoul" }
+);
 
 app.get("/main", async (req, res) => {
   try {
