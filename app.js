@@ -88,7 +88,7 @@ cron.schedule("*/10 * * * *", async () => {
 });
 
 // 매일 오전 9시 30분(Asia/Seoul) 기준으로 오래된 크롤링 데이터 삭제 (60일 이상)
-const cleanupLogDir = path.join(__dirname, "logs");
+const cleanupLogDir = path.join(__dirname, "log");
 const cleanupLogPath = path.join(cleanupLogDir, "crawler_cleanup.log");
 
 const appendCleanupLog = (message) => {
@@ -104,7 +104,7 @@ const appendCleanupLog = (message) => {
 };
 
 cron.schedule(
-  "30 9 * * *",
+  "50 9 * * *",
   async () => { 
     console.log("오래된 크롤링 데이터 삭제 작업 시작");
     appendCleanupLog("정리 작업 시작");
