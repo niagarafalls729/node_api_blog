@@ -57,35 +57,40 @@ app.use((_req, res, next) => {
 // 크롤링 라우터 추가
 app.use("/crawler", crawlerRouter);
 
-cron.schedule("0 9 * * *", async () => {
-  console.log("매일 오전 9시에 실행되는 작업");
-  try {
-    const connection = await baseDbConnection(); // 데이터베이스 연결
-    await oneDaySql(connection); // 쿼리 실행
-    await connection.close(); // 연결 종료
-  } catch (err) {
-    console.error("작업 실패:", err);
-  }
-});
+// PM2 클러스터 모드 사용 시, 0번 인스턴스에서만 스케줄러 실행
+const isMasterInstance = process.env.NODE_APP_INSTANCE === '0' || typeof process.env.NODE_APP_INSTANCE === 'undefined';
 
-// 매일 10분마다 디시인사이드 크롤링 실행
-cron.schedule("*/10 * * * *", async () => {
-  console.log("매일 10분마다 디시인사이드 크롤링 실행");  
-  try {
-    // 실시간베스트 크롤링 (1페이지)
-    const axios = require("axios");
-    const response = await axios.post(
-      "http://localhost:4000/crawler/dcinside/best",
-      {
-        galleryId: CRAWLER_CONFIG.GALLERY_ID,
-        maxPages: CRAWLER_CONFIG.MAX_PAGES,
-      }
-    );
-    console.log("크롤링 완료:", response.data);
-  } catch (err) {
-    console.error("크롤링 실패:", err);
-  }
-});
+if (isMasterInstance) {
+  cron.schedule("0 9 * * *", async () => {
+    console.log("매일 오전 9시에 실행되는 작업");
+    try {
+      const connection = await baseDbConnection(); // 데이터베이스 연결
+      await oneDaySql(connection); // 쿼리 실행
+      await connection.close(); // 연결 종료
+    } catch (err) {
+      console.error("작업 실패:", err);
+    }
+  });
+
+  // 매일 10분마다 디시인사이드 크롤링 실행
+  cron.schedule("*/10 * * * *", async () => {
+    console.log("매일 10분마다 디시인사이드 크롤링 실행");  
+    try {
+      // 실시간베스트 크롤링 (1페이지)
+      const axios = require("axios");
+      const response = await axios.post(
+        "http://localhost:4000/crawler/dcinside/best",
+        {
+          galleryId: CRAWLER_CONFIG.GALLERY_ID,
+          maxPages: CRAWLER_CONFIG.MAX_PAGES,
+        }
+      );
+      console.log("크롤링 완료:", response.data);
+    } catch (err) {
+      console.error("크롤링 실패:", err);
+    }
+  });
+}
 
 // 매일 오전 9시 30분(Asia/Seoul) 기준으로 오래된 크롤링 데이터 삭제 (60일 이상)
 const cleanupLogDir = path.join(__dirname, "log");
@@ -103,22 +108,24 @@ const appendCleanupLog = (message) => {
   }
 };
 
-cron.schedule(
-  "50 9 * * *",
-  async () => { 
-    console.log("오래된 크롤링 데이터 삭제 작업 시작");
-    appendCleanupLog("정리 작업 시작");
-    try {
-      const result = await crawlerDB.cleanupOldCrawlerData(60); // 60일 이상 된 데이터 삭제
-      console.log("크롤링 데이터 삭제 완료:", result);
-      appendCleanupLog(`정리 완료: ${JSON.stringify(result)}`);
-    } catch (err) {
-      console.error("크롤링 데이터 삭제 실패:", err);
-      appendCleanupLog(`정리 실패: ${err?.message || err}`);
-    }
-  },
-  { timezone: "Asia/Seoul" }
-);
+if (isMasterInstance) {
+  cron.schedule(
+    "50 9 * * *",
+    async () => { 
+      console.log("오래된 크롤링 데이터 삭제 작업 시작");
+      appendCleanupLog("정리 작업 시작");
+      try {
+        const result = await crawlerDB.cleanupOldCrawlerData(60); // 60일 이상 된 데이터 삭제
+        console.log("크롤링 데이터 삭제 완료:", result);
+        appendCleanupLog(`정리 완료: ${JSON.stringify(result)}`);
+      } catch (err) {
+        console.error("크롤링 데이터 삭제 실패:", err);
+        appendCleanupLog(`정리 실패: ${err?.message || err}`);
+      }
+    },
+    { timezone: "Asia/Seoul" }
+  );
+}
 
 app.get("/main", async (req, res) => {
   try {
@@ -330,7 +337,7 @@ app.post("/img", upload.single("img"), (req, res) => {
   // console.log('저장된 파일의 이름', req.file.filename);
 
   // 파일이 저장된 경로를 클라이언트에게 반환해준다.
-  const IMG_URL = `http://138.2.119.188:4000/uploads/${req.file.filename}`;
+  const IMG_URL = `http://158.180.78.245:4000/uploads/${req.file.filename}`;
   // const IMG_URL = `http://localhost:4000/uploads/${req.file.filename}`;
   res.json({ url: IMG_URL });
 });
@@ -430,7 +437,9 @@ app.post("/updateEmail", async (req, res) => {
 app.listen(4000, () => {
   console.log("서버가 실행되었습니다.");
 
-  // 크롤링 스케줄러 시작
-  setupScheduledCrawling();
-  console.log("크롤링 스케줄러가 시작되었습니다.");
+  // 크롤링 스케줄러 시작 (0번 인스턴스에서만)
+  if (isMasterInstance) {
+    setupScheduledCrawling();
+    console.log("크롤링 스케줄러가 시작되었습니다.");
+  }
 });
